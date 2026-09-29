@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Модель розкладу РФКІТ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400;1,7..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #f5f6f8;
+    --sheet: #ffffff;
+    --ink: #1b2230;
+    --muted: #5b6475;
+    --rule: #d9dde5;
+    --accent: #2b5f8a;
+    --accent-soft: #e3ecf5;
+    --chalk: #b3701a;
+    --chalk-soft: #f6ead9;
+    --shift1: #d6e4f1;
+    --shift2: #e4dff2;
+    --cross: #f3e2c7;
+    --serif: "Literata", "Georgia", "Times New Roman", serif;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #11151c;
+      --sheet: #171c25;
+      --ink: #e3e7ee;
+      --muted: #9aa3b3;
+      --rule: #2c3442;
+      --accent: #86b6df;
+      --accent-soft: #1d2b3b;
+      --chalk: #e0a458;
+      --chalk-soft: #2d2419;
+      --shift1: #1f3246;
+      --shift2: #2d2742;
+      --cross: #3a2e1c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #11151c;
+    --sheet: #171c25;
+    --ink: #e3e7ee;
+    --muted: #9aa3b3;
+    --rule: #2c3442;
+    --accent: #86b6df;
+    --accent-soft: #1d2b3b;
+    --chalk: #e0a458;
+    --chalk-soft: #2d2419;
+    --shift1: #1f3246;
+    --shift2: #2d2742;
+    --cross: #3a2e1c;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.6;
+    padding-inline: 16px;
+    padding-block: 40px 64px;
+  }
+  .page { max-width: 880px; margin-inline: auto; display: grid; gap: 44px; }
+
+  header { display: grid; gap: 14px; }
+  .eyebrow {
+    font-family: var(--sans); font-size: 12px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 44px); line-height: 1.15; margin: 0;
+    font-weight: 700; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .lede { font-size: 19px; color: var(--muted); margin: 0; max-width: 65ch; }
+  .facts {
+    display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 6px 0 0; padding: 0; list-style: none;
+    font-family: var(--sans); font-size: 14px; color: var(--muted);
+  }
+  .facts b { font-family: var(--mono); font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  section { display: grid; gap: 16px; }
+  h2 {
+    font-size: 26px; line-height: 1.25; margin: 0; font-weight: 700; text-wrap: balance;
+    display: flex; gap: 12px; align-items: baseline;
+  }
+  h2 .sec { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--chalk); }
+  h3 { font-family: var(--sans); font-size: 15px; font-weight: 600; margin: 8px 0 0; letter-spacing: .02em; }
+  p { margin: 0; max-width: 68ch; }
+  .muted { color: var(--muted); }
+
+  /* математика */
+  .m { font-style: italic; white-space: nowrap; }
+  .m .up { font-style: normal; }
+  sub, sup { font-size: .72em; line-height: 0; }
+  .eq {
+    background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 14px 18px; overflow-x: auto; font-size: 18px; line-height: 1.9;
+    display: grid; gap: 4px;
+  }
+  .eq .row { display: flex; gap: 18px; align-items: baseline; flex-wrap: nowrap; white-space: nowrap; }
+  .eq .tag { font-family: var(--mono); font-style: normal; font-size: 13px; color: var(--chalk); min-width: 34px; }
+  .eq .note { font-family: var(--sans); font-style: normal; font-size: 13px; color: var(--muted); }
+  .sum { font-style: normal; font-size: 1.25em; vertical-align: -0.08em; }
+
+  /* лінійка пар */
+  .ruler { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; font-family: var(--sans); }
+  .ruler .cell {
+    border-radius: 4px; padding: 8px 4px; text-align: center; font-size: 13px; line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
+  .ruler .num { font-family: var(--mono); font-size: 18px; font-weight: 500; display: block; }
+  .s1 { background: var(--shift1); }
+  .s2 { background: var(--shift2); }
+  .ruler-legend { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; font-family: var(--sans); font-size: 12px; color: var(--muted); }
+  .ruler-legend span { text-align: center; }
+  .x1 { box-shadow: inset 0 -4px 0 var(--chalk); }
+
+  /* приклад клітинки чисельник/знаменник */
+  .demo { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .slot { border: 1px solid var(--rule); background: var(--sheet); border-radius: 6px; overflow: hidden; font-family: var(--sans); font-size: 14px; }
+  .slot .head { padding: 6px 12px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--rule); letter-spacing: .04em; text-transform: uppercase; }
+  .slot .half { padding: 8px 12px; display: flex; justify-content: space-between; gap: 8px; }
+  .slot .half + .half { border-top: 1px dashed var(--rule); }
+  .slot .wk { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  /* таблиці */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { font-weight: 600; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.w { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--chalk); }
+  td.stage { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+  td .m { white-space: normal; }
+
+  /* конвеєр */
+  .pipeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: step; }
+  .pipeline li {
+    counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start;
+  }
+  .pipeline li::before {
+    content: counter(step); font-family: var(--mono); font-size: 14px; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 50%; width: 28px; height: 28px;
+    display: grid; place-items: center; margin-top: 1px;
+  }
+  .pipeline b { font-family: var(--sans); font-weight: 600; }
+
+  .callout {
+    background: var(--chalk-soft); border-radius: 6px; padding: 14px 18px; display: grid; gap: 6px;
+    font-size: 16px;
+  }
+  .callout .eyebrow { color: var(--chalk); }
+  code { font-family: var(--mono); font-size: .86em; background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; }
+  footer { font-family: var(--sans); font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; }
+
+  @media (max-width: 560px) {
+    body { font-size: 16px; }
+    .eq { font-size: 16px; padding: 12px; }
+    .ruler .cell { font-size: 11px; padding: 6px 2px; }
+    .ruler .num { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header>
+  <div class="eyebrow">Генератор розкладу · математична модель</div>
+  <h1>Як будується розклад: цілочисельна модель CP-SAT</h1>
+  <p class="lede">Розклад — це розв'язок задачі дискретної оптимізації: обрати для кожного рядка навантаження
+    дні й пари в чисельнику та знаменнику так, щоб жорсткі правила виконувались завжди, а сумарний штраф
+    за м'які правила був мінімальним.</p>
+  <ul class="facts">
+    <li>Рядків навантаження <b>449</b></li>
+    <li>Груп <b>40</b></li>
+    <li>Викладачів <b>65</b></li>
+    <li>Аудиторій <b>35</b></li>
+    <li>Основних змінних <b>13 225</b></li>
+    <li>Змінних усього <b>≈30 300</b></li>
+    <li>Обмежень <b>≈38 600</b></li>
+  </ul>
+</header>
+
+<section id="sets">
+  <h2><span class="sec">§1</span>Множини та вхідні дані</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Позначення</th><th>Зміст</th></tr></thead>
+      <tbody>
+        <tr><td><span class="m">G</span></td><td>групи; для групи <span class="m">g</span> задано зміну <span class="m">s<sub>g</sub></span> ∈ {1, 2}</td></tr>
+        <tr><td><span class="m">L</span></td><td>заняття — рядки аркуша «Навантаження»: група <span class="m">g(l)</span>, дисципліна <span class="m">σ(l)</span>, викладачі <span class="m">T(l)</span>, пар на тиждень <span class="m">h<sub>l</sub></span></td></tr>
+        <tr><td><span class="m">T</span></td><td>викладачі; <span class="m">|T(l)| ≥ 2</span> означає поділ групи на підгрупи, які займаються одночасно</td></tr>
+        <tr><td><span class="m">W</span> = {0, 1}</td><td>тиждень: 0 — чисельник, 1 — знаменник</td></tr>
+        <tr><td><span class="m">D</span> = {1…5}</td><td>дні пн–пт; субота не моделюється, вона повторює будній день (§7)</td></tr>
+        <tr><td><span class="m">P</span> = {1…7}</td><td>пари дня, максимум 7</td></tr>
+        <tr><td><span class="m">R</span></td><td>аудиторії з типом: звичайна, комп'ютерна, «для програмістів», тир, спортзал, резервна</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Дозволені пари групи</h3>
+  <p>Власні пари зміни: <span class="m">P<sub>g</sub><sup class="up">own</sup></span> = {1, 2, 3, 4} для І зміни і {5, 6, 7} для ІІ.
+    До них додається одна сусідня пара, яку можна взяти лише зі штрафом («перехід між змінами»):</p>
+  <div>
+    <div class="ruler" aria-label="Пари 1–7 за змінами">
+      <div class="cell s1"><span class="num">1</span>І зміна</div>
+      <div class="cell s1"><span class="num">2</span>І зміна</div>
+      <div class="cell s1"><span class="num">3</span>І зміна</div>
+      <div class="cell s1 x1"><span class="num">4</span>І зміна</div>
+      <div class="cell s2 x1"><span class="num">5</span>ІІ зміна</div>
+      <div class="cell s2"><span class="num">6</span>ІІ зміна</div>
+      <div class="cell s2"><span class="num">7</span>ІІ зміна</div>
+    </div>
+    <div class="ruler-legend" style="margin-top:6px">
+      <span></span><span></span><span></span><span>для ІІ — перехід</span><span>для І — перехід</span><span></span><span></span>
+    </div>
+  </div>
+  <div class="eq">
+    <div class="row"><span class="m">P<sub>g</sub> = P<sub>g</sub><sup class="up">own</sup> ∪ {5}</span><span class="note">якщо s<sub>g</sub> = 1</span></div>
+    <div class="row"><span class="m">P<sub>g</sub> = P<sub>g</sub><sup class="up">own</sup> ∪ {4}</span><span class="note">якщо s<sub>g</sub> = 2</span></div>
+  </div>
+
+  <h3>Тижневе навантаження</h3>
+  <p>Кількість пар за два тижні <span class="m">n<sub>l</sub> = round(2h<sub>l</sub>)</span>; межі одного тижня:</p>
+  <div class="eq">
+    <div class="row"><span class="m">lo<sub>l</sub> = ⌊n<sub>l</sub> / 2⌋,&nbsp;&nbsp; hi<sub>l</sub> = ⌈n<sub>l</sub> / 2⌉</span><span class="note">1,5 → 1 і 2; 2,5 → 2 і 3; ціле — однаково</span></div>
+  </div>
+</section>
+
+<section id="vars">
+  <h2><span class="sec">§2</span>Змінні рішення</h2>
+  <div class="eq">
+    <div class="row"><span class="m">x<sub>l,w,d,p</sub> ∈ {0, 1}</span><span class="note">1 — заняття l стоїть у тижні w, день d, пара p;&nbsp; p ∈ P<sub>g(l)</sub></span></div>
+    <div class="row"><span class="m">x<sub>l,0,d,p</sub> ≡ x<sub>l,1,d,p</sub></span><span class="note">якщо lo<sub>l</sub> = hi<sub>l</sub>: заняття з цілим навантаженням однакові в обох тижнях (одна змінна)</span></div>
+    <div class="row"><span class="m">y<sub>g,w,d,p</sub> = <span class="sum">Σ</span><sub>l ∈ L<sub>g</sub></sub> x<sub>l,w,d,p</sub></span><span class="note">зайнятість групи (вираз, не окрема змінна)</span></div>
+  </div>
+  <p class="muted">Дробові заняття мають окремі змінні для чисельника і знаменника — саме вони й створюють різницю між тижнями.</p>
+</section>
+
+<section id="hard">
+  <h2><span class="sec">§3</span>Жорсткі обмеження</h2>
+  <p>Будь-який знайдений розклад задовольняє їх без винятків.</p>
+  <div class="eq">
+    <div class="row"><span class="tag">H1</span><span class="m">y<sub>g,w,d,p</sub> ≤ 1</span><span class="note">у групи одне заняття в пару</span></div>
+    <div class="row"><span class="tag">H2</span><span class="m"><span class="sum">Σ</span><sub>l : t ∈ T(l)</sub> x<sub>l,w,d,p</sub> ≤ 1</span><span class="note">викладач не веде двох занять одночасно</span></div>
+    <div class="row"><span class="tag">H3</span><span class="m"><span class="sum">Σ</span><sub>l : t ∈ T(l)</sub> <span class="sum">Σ</span><sub>p</sub> x<sub>l,w,d,p</sub> ≤ 4</span><span class="note">у викладача не більше 4 пар на день</span></div>
+    <div class="row"><span class="tag">H4</span><span class="m">lo<sub>l</sub> ≤ <span class="sum">Σ</span><sub>d,p</sub> x<sub>l,w,d,p</sub> ≤ hi<sub>l</sub>,&nbsp;&nbsp; <span class="sum">Σ</span><sub>w,d,p</sub> x<sub>l,w,d,p</sub> = n<sub>l</sub></span><span class="note">навантаження точно за планом, дробове — чергується</span></div>
+    <div class="row"><span class="tag">H5</span><span class="m"><span class="sum">Σ</span><sub>p</sub> y<sub>g,w,d,p</sub> ≤ 4</span><span class="note">у групи не більше 4 пар на день</span></div>
+    <div class="row"><span class="tag">H6</span><span class="m"><span class="sum">Σ</span><sub>l ∈ L<sub>g,σ</sub></sub> <span class="sum">Σ</span><sub>p</sub> x<sub>l,w,d,p</sub> ≤ 1</span><span class="note">без двох однакових дисциплін у день (якщо пар дисципліни ≤ 5)</span></div>
+    <div class="row"><span class="tag">H7</span><span class="m"><span class="sum">Σ</span><sub>l : cat(l) ≠ gym</sub> |T(l)| · x<sub>l,w,d,p</sub> ≤ C</span><span class="note">занять не більше, ніж аудиторій (C = 32, спортзал спільний)</span></div>
+  </div>
+  <p>У H4 рівність суми за два тижні разом з межами одного тижня і дає чергування: дисципліна з 1,5 пари має
+    в одному тижні 1 пару, в іншому 2. Котрий тиждень отримує 2, розв'язувач обирає окремо для кожної дисципліни.
+    Так дві «половинки» ділять одну пару, як у шаблоні коледжу:</p>
+  <div class="demo">
+    <div class="slot">
+      <div class="head">Одна пара групи ФБС-1/1 (приклад)</div>
+      <div class="half"><span>Математика · Єфімчук С. О.</span><span class="wk">Ч</span></div>
+      <div class="half"><span>Біологія і екологія · Багнюк А. В.</span><span class="wk">З</span></div>
+    </div>
+    <div class="slot">
+      <div class="head">Результат за тиждень</div>
+      <div class="half"><span>Математика 1,5 → 1 + 2</span><span class="wk">Ч / З</span></div>
+      <div class="half"><span>Біологія 1,5 → 2 + 1</span><span class="wk">Ч / З</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="soft">
+  <h2><span class="sec">§4</span>М'які обмеження і штрафи</h2>
+  <p>Кожне правило, яке в окремих випадках можна порушити, стає невід'ємною допоміжною змінною зі своєю вагою.
+    Ваги відтворюють порядок пріоритетів з аркуша «Властивості розкладу».</p>
+
+  <h3>День групи</h3>
+  <div class="eq">
+    <div class="row"><span class="m">N<sub>g,w,d</sub> = <span class="sum">Σ</span><sub>p</sub> y<sub>g,w,d,p</sub>,&nbsp;&nbsp; a<sub>g,w,d</sub> ∈ {0,1},&nbsp;&nbsp; a ≤ N ≤ 4a</span><span class="note">a = 1 — день навчальний</span></div>
+    <div class="row"><span class="m">u<sub>g,w,d</sub> ≥ 3a<sub>g,w,d</sub> − N<sub>g,w,d</sub></span><span class="note">нестача до 3 пар</span></div>
+    <div class="row"><span class="m">b<sub>p</sub> ≥ y<sub>p</sub> − y<sub>p−1</sub>,&nbsp;&nbsp; <span class="sum">Σ</span><sub>p</sub> b<sub>p</sub> ≤ 1 + γ<sub>g,w,d</sub></span><span class="note">b — початок блоку пар; більше одного блоку = «вікно»</span></div>
+  </div>
+
+  <h3>Вікна викладача</h3>
+  <p>Для зайнятості викладача <span class="m">z<sub>p</sub></span> вводяться «було до» <span class="m">B<sub>p</sub></span> і «буде після» <span class="m">A<sub>p</sub></span>;
+    вільна пара між ними — вікно, сума таких пар — довжина вікон:</p>
+  <div class="eq">
+    <div class="row"><span class="m">B<sub>p</sub> ≥ z<sub>p</sub>,&nbsp; B<sub>p</sub> ≥ B<sub>p−1</sub>;&nbsp;&nbsp; A<sub>p</sub> ≥ z<sub>p</sub>,&nbsp; A<sub>p</sub> ≥ A<sub>p+1</sub></span></div>
+    <div class="row"><span class="m">ι<sub>p</sub> ≥ B<sub>p−1</sub> + A<sub>p+1</sub> − 1 − z<sub>p</sub></span><span class="note">ι<sub>p</sub> = 1 — вікно на парі p</span></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Штраф</th><th>Вираз</th><th style="text-align:right">Вага</th><th>Етап</th></tr></thead>
+      <tbody>
+        <tr><td>Менше 3 пар у навчальний день</td><td><span class="m">u<sub>g,w,d</sub></span></td><td class="w">1000</td><td class="stage">1</td></tr>
+        <tr><td>Вікна у групи</td><td><span class="m">γ<sub>g,w,d</sub></span></td><td class="w">1000</td><td class="stage">1</td></tr>
+        <tr><td>Однакові дисципліни (якщо неминуче)</td><td><span class="m">δ ≥ <span class="sum">Σ</span> x − 1</span></td><td class="w">300</td><td class="stage">1</td></tr>
+        <tr><td>Пара поза своєю зміною</td><td><span class="m">y<sub>g,w,d,p</sub>, p ∉ P<sub>g</sub><sup class="up">own</sup></span></td><td class="w">200</td><td class="stage">1</td></tr>
+        <tr><td>Вільний день у групи</td><td><span class="m">1 − a<sub>g,w,d</sub></span></td><td class="w">100</td><td class="stage">1</td></tr>
+        <tr><td>Нестача комп'ютерних класів</td><td><span class="m">e ≥ <span class="sum">Σ</span><sub>comp</sub> |T(l)| x − C<sub>comp</sub></span></td><td class="w">50</td><td class="stage">2</td></tr>
+        <tr><td>Вікна викладачів</td><td><span class="m">ι<sub>t,w,d,p</sub></span></td><td class="w">30</td><td class="stage">2</td></tr>
+        <tr><td>Різна форма дня в Ч і З</td><td><span class="m">|y<sub>g,0,d,p</sub> − y<sub>g,1,d,p</sub>|</span></td><td class="w">20</td><td class="stage">2</td></tr>
+        <tr><td>Нерівномірне навантаження викладача</td><td><span class="m">o ≥ <span class="sum">Σ</span><sub>p</sub> z<sub>p</sub> − ⌈H<sub>t</sub> / 5⌉</span></td><td class="w">5</td><td class="stage">2</td></tr>
+        <tr><td>Різні місця дробової дисципліни</td><td><span class="m">|x<sub>l,0,d,p</sub> − x<sub>l,1,d,p</sub>|</span></td><td class="w">2</td><td class="stage">2</td></tr>
+        <tr><td>Початок не з першої пари зміни</td><td><span class="m">b<sub>p</sub>, p &gt; min P<sub>g</sub><sup class="up">own</sup></span></td><td class="w">1</td><td class="stage">2</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">Модулі <span class="m">|a − b|</span> лінеаризуються стандартно: <span class="m">v ≥ a − b, v ≥ b − a</span>. Усі штрафні змінні мають лише нижні межі,
+    тому при мінімізації вони набувають точного значення.</p>
+</section>
+
+<section id="objective">
+  <h2><span class="sec">§5</span>Цільова функція: два етапи</h2>
+  <p>Штрафи розділено на правила груп <span class="m">F<sub>core</sub></span> (етап 1 у таблиці) і якість для викладачів <span class="m">F<sub>quality</sub></span> (етап 2).
+    Задача розв'язується лексикографічно:</p>
+  <div class="eq">
+    <div class="row"><span class="tag">E1</span><span class="m">F<sup class="up">*</sup><sub>core</sub> = min F<sub>core</sub>(x)</span><span class="note">40% часу; зазвичай досягає 0 за 15–20 с</span></div>
+    <div class="row"><span class="tag">E2</span><span class="m">min F<sub>core</sub>(x) + F<sub>quality</sub>(x)&nbsp;&nbsp; при&nbsp; F<sub>core</sub>(x) ≤ F<sup class="up">*</sup><sub>core</sub></span><span class="note">решта часу; старт — з повного розв'язку E1</span></div>
+  </div>
+  <p>Обмеження в E2 гарантує, що покращення для викладачів ніколи не погіршить правила груп. Усі змінні
+    етапу 2 отримують підказку (hint) значеннями з етапу 1, тому пошук починається з уже допустимого розкладу.
+    Якщо другий етап не встигає, лишається розв'язок першого.</p>
+  <p>Розв'язувач — CP-SAT з Google OR-Tools: паралельний пошук на всіх ядрах (LNS, лінійні релаксації, пропагація обмежень).</p>
+</section>
+
+<section id="rooms">
+  <h2><span class="sec">§6</span>Аудиторії</h2>
+  <p>Аудиторії призначаються після розкладу окремим алгоритмом. H7 гарантує, що місць вистачає в кожну пару.
+    Тип аудиторії визначається за назвою дисципліни, а кожен тип має рівні пріоритету з вартістю:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Дисципліна</th><th>0 — бажано</th><th>20</th><th>60</th><th>200</th></tr></thead>
+      <tbody>
+        <tr><td>Фізична культура</td><td>спортзал (спільний)</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Захист України</td><td>тир</td><td>н.м, звичайні</td><td>—</td><td>—</td></tr>
+        <tr><td>Комп'ютерні</td><td>комп'ютерні класи (КН, ІПЗ — також 8, 9)</td><td>звичайні</td><td>резервні</td><td>лабораторія, бібліотека</td></tr>
+        <tr><td>Решта</td><td>звичайні</td><td>—</td><td>резервні</td><td>лабораторія, бібліотека</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ol class="pipeline">
+    <li><span><b>«Свій кабінет».</b> Викладачі від найзавантаженіших. Для викладача обирається аудиторія найнижчої вартості,
+      вільна в найбільшій кількості його пар; вона призначається на всі ці пари, решту пар обробляє наступна ітерація.</span></li>
+    <li><span><b>Ремонт.</b> Якщо заняттю не дісталося аудиторії, одне інше заняття в цей час переноситься в альтернативну вільну аудиторію.</span></li>
+  </ol>
+  <p class="muted">Однакове заняття в чисельнику і знаменнику отримує одну аудиторію; підгрупи — різні. На даних коледжу виходить у середньому 1,8 аудиторії на викладача.</p>
+</section>
+
+<section id="calendar">
+  <h2><span class="sec">§7</span>Календар: тижні й суботи</h2>
+  <p>Модель будує тиждень пн–пт двічі (чисельник і знаменник). Реальна дата <span class="m">τ</span> відображається на день розкладу так:</p>
+  <div class="eq">
+    <div class="row"><span class="m">w(τ) = (⌊(τ − Mon(τ<sub>0</sub>)) / 7⌋ + w<sub>0</sub>) mod 2</span><span class="note">τ<sub>0</sub> — початок семестру, w<sub>0</sub> — його тиждень (зазвичай чисельник)</span></div>
+    <div class="row"><span class="m">d(Sat<sub>k</sub>) = k mod 5</span><span class="note">k-та субота семестру (k = 0, 1, …): пн, вт, ср, чт, пт, пн, …</span></div>
+  </div>
+  <div class="callout">
+    <div class="eyebrow">Перевірка на файлах коледжу</div>
+    <span>Семестр з 01.09.2026: 23.09 — середа, знаменник; 26.09 — четверта субота (<span class="m">k = 3</span>) → четвер, знаменник;
+      28.09 — понеділок, чисельник. Усе збігається з файлами «Розклад на …» з папки <code>info/</code>.</span>
+  </div>
+</section>
+
+<section id="pipeline">
+  <h2><span class="sec">§8</span>Повний цикл</h2>
+  <ol class="pipeline">
+    <li><span><b>Читання.</b> Аркуші «Навантаження» і «аудиторії»; нормалізація імен («Сальчук А.В.» = «Сальчук А. В.», «Сергій ПАНДРАК» → «Пандрак С.»).</span></li>
+    <li><span><b>Етап E1.</b> Мінімізація порушень правил груп.</span></li>
+    <li><span><b>Етап E2.</b> Покращення для викладачів без погіршення E1.</span></li>
+    <li><span><b>Аудиторії.</b> «Свій кабінет» і ремонт (§6).</span></li>
+    <li><span><b>Валідація.</b> Незалежна перевірка готового розкладу на всі правила — окремий код, не розв'язувач.</span></li>
+    <li><span><b>Експорт.</b> Excel у форматі шаблону коледжу, аркуші курсів, викладачів, субот і перевірки; розклад на будь-яку дату.</span></li>
+  </ol>
+</section>
+
+<footer>
+  Код моделі: <code>app/scheduler/solver.py</code> · аудиторії: <code>rooms.py</code> · календар: <code>semester.py</code> · перевірка: <code>validator.py</code>
+</footer>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      SOLVER_TIME_LIMIT: "120"
+      SOLVER_WORKERS: "0"  # 0 — усі ядра
+    volumes:
+      - schedule-data:/data
+    restart: unless-stopped
+
+volumes:
+  schedule-data:

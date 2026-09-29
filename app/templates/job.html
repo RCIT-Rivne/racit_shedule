@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block head %}{% if job.status in ('queued', 'running') %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
+{% block title %}Розклад — {{ job.input_name }}{% endblock %}
+
+{% macro lesson(p, show) %}
+  {% if p %}
+    <div class="subj">{{ p.subject }}</div>
+    <div class="meta">{% if show == 'group' %}{{ p.group }}{% else %}{{ p.teachers|join(', ') }}{% endif %}{% if p.rooms %} · ауд. {{ p.rooms|join(', ') }}{% endif %}</div>
+  {% else %}<span class="empty">—</span>{% endif %}
+{% endmacro %}
+
+{% block content %}
+<h1>{{ job.input_name }}</h1>
+<p class="hint">Створено {{ job.created.replace('T', ' ') }}, ліміт часу {{ job.time_limit|int }} с, семестр {{ semester.start.strftime('%d.%m.%Y') }}–{{ semester.end.strftime('%d.%m.%Y') }}</p>
+
+{% if job.status == 'queued' %}
+  <p class="card">У черзі…</p>
+{% elif job.status == 'running' %}
+  <div class="card">
+    <p><b>Генерується…</b></p>
+    {% if job.progress %}
+      <p>{% if job.progress.stage == 2 %}Етап 2 з 2: покращення розкладу для викладачів
+         {% else %}Етап 1 з 2: пошук розкладу за правилами груп{% endif %}</p>
+      <p>Знайдено варіантів: {{ job.progress.solutions }}, поточний штраф: {{ job.progress.objective|int }},
+         минуло {{ job.progress.elapsed|int }} с з {{ job.time_limit|int }}</p>
+    {% endif %}
+  </div>
+{% elif job.status == 'failed' %}
+  <p class="card error">Помилка: {{ job.error }}</p>
+{% endif %}
+
+{% if result %}
+<div class="card">
+  <p>Статус: <b>{{ job.solver_status }}</b> · штраф {{ job.objective|int }} · {{ job.solve_seconds }} с ·
+     помилок: <b>{{ job.issue_counts.error }}</b>, попереджень: <b>{{ job.issue_counts.warning }}</b></p>
+  <a class="button" href="{{ url_for('main.download', job_id=job.id) }}">Завантажити Excel</a>
+  <a href="{{ url_for('main.download_input', job_id=job.id) }}">вхідний файл</a>
+  <form method="post" action="{{ url_for('main.delete', job_id=job.id) }}" class="inline">
+    <button class="link">видалити</button>
+  </form>
+</div>
+
+<details class="card">
+  <summary>Якість розкладу</summary>
+  <table class="list">
+    {% for k, v in (result.quality or {}).items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+  </table>
+  {% if result.penalty_breakdown %}
+  <p class="hint">Зі чого складається штраф {{ job.objective|int }}:</p>
+  <table class="list">
+    {% for k, v in result.penalty_breakdown.items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+</details>
+
+{% if result.issues %}
+<details class="card" {% if job.issue_counts.error %}open{% endif %}>
+  <summary>Перевірка правил ({{ result.issues|length }})</summary>
+  <table class="list">
+    {% for i in result.issues %}
+    <tr class="{{ i.severity }}"><td>{{ i.rule }}</td><td>{{ i.message }}</td></tr>
+    {% endfor %}
+  </table>
+</details>
+{% endif %}
+
+<form method="get" class="card">
+  <label class="inline-label">Розклад на дату
+    <input type="date" name="date" value="{{ on_date.isoformat() if on_date else '' }}"
+           min="{{ semester.start.isoformat() }}" max="{{ semester.end.isoformat() }}">
+  </label>
+  <input type="hidden" name="course" value="{{ selected if view == 'groups' else '' }}">
+  <button type="submit">Показати</button>
+  {% if on_date %}
+    <b>{{ on_date_text }}</b>
+    {% if resolved %}<a href="{{ url_for('main.download_day', job_id=job.id, date=on_date.isoformat()) }}">Excel на цю дату</a>{% endif %}
+    <a href="{{ url_for('main.job', job_id=job.id, course=selected if view == 'groups' else None) }}">увесь тиждень</a>
+  {% endif %}
+</form>
+
+{% if saturdays %}
+<details class="card">
+  <summary>Навчальні суботи ({{ saturdays|length }})</summary>
+  <table class="list">
+    {% for s in saturdays %}
+    <tr><td>{{ s.date[8:10] }}.{{ s.date[5:7] }}.{{ s.date[:4] }}</td><td>{{ days_labels[s.day] }}</td><td>{{ weeks[s.week]|lower }}</td></tr>
+    {% endfor %}
+  </table>
+</details>
+{% endif %}
+
+<nav class="tabs">
+  {% for c in courses %}
+    <a href="{{ url_for('main.job', job_id=job.id, course=c, date=on_date.isoformat() if on_date else None) }}" class="{% if view == 'groups' and selected == c %}active{% endif %}">{{ c }} курс</a>
+  {% endfor %}
+  <form method="get" class="inline">
+    <input type="hidden" name="view" value="teachers">
+    {% if on_date %}<input type="hidden" name="date" value="{{ on_date.isoformat() }}">{% endif %}
+    <select name="teacher" onchange="this.form.submit()">
+      <option value="">Викладач…</option>
+      {% for t in result.teachers %}<option {% if view == 'teachers' and selected == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+    </select>
+  </form>
+</nav>
+
+{% set show = 'group' if view == 'teachers' else 'teacher' %}
+{% if on_date and not resolved %}
+  <p class="card">{{ on_date.strftime('%d.%m.%Y') }} — занять немає ({{ on_date_text }}).</p>
+{% else %}
+{% if on_date %}
+  {% set day_indexes = [resolved[0]] %}
+  <p class="hint">Показано {{ weeks[resolved[1]]|lower }}.</p>
+{% else %}
+  {% set day_indexes = range(days|length) %}
+  <p class="hint">У клітинці: зверху — чисельник, знизу — знаменник (якщо відрізняються).</p>
+{% endif %}
+<div class="scroll">
+<table class="timetable">
+  <tr><th>День</th><th>Пара</th>{% for n in names %}<th>{{ n }}</th>{% endfor %}</tr>
+  {% for d in day_indexes %}
+    {% for pair in pairs %}
+    <tr class="{% if loop.first %}day-start{% endif %}">
+      {% if loop.first %}<th rowspan="{{ pairs|length }}" class="day">{{ days[d] }}</th>{% endif %}
+      <th>{{ pair }}</th>
+      {% for n in names %}
+        {% set cell = grid[n][(d, pair)] %}
+        <td>
+          {% if on_date %}
+            {% if cell[resolved[1]] %}{{ lesson(cell[resolved[1]], show) }}{% endif %}
+          {% elif cell[0] or cell[1] %}
+            {% if cell[0] and cell[1] and cell[0].subject == cell[1].subject and cell[0].rooms == cell[1].rooms and cell[0].group == cell[1].group %}
+              {{ lesson(cell[0], show) }}
+            {% else %}
+              <div class="half">{{ lesson(cell[0], show) }}</div>
+              <div class="half">{{ lesson(cell[1], show) }}</div>
+            {% endif %}
+          {% endif %}
+        </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+</table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
