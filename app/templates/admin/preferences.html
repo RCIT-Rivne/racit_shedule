@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Вподобання викладачів{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Для генератора</p>
+    <h1 class="page__title">Вподобання викладачів</h1>
+    <p class="page__lede">Правило стосується одного викладача або групи («Адміністрація»). <b>Жорстке</b> генератор не порушує ніколи; <b>«за можливості»</b> — уникає, наскільки дозволяють інші правила. Діють з наступної генерації.</p>
+  </div>
+  {% if not rows %}
+  <form method="post" action="{{ url_for('admin.import_preferences') }}">{{ ui.csrf() }}<button class="btn btn--secondary btn--sm">Імпортувати зібрані умови</button></form>
+  {% endif %}
+</div>
+
+<details class="card" {{ 'open' if not rows }}>
+  <summary>Нове правило</summary>
+  <form class="form" method="post" id="pref-form">
+    {{ ui.csrf() }}
+    <label class="field"><span class="field__label">Назва (для себе)</span><input class="input" name="label" placeholder="Наприклад: Адміністрація — нарада в понеділок"></label>
+    <label class="field">
+      <span class="field__label">Викладачі</span>
+      <select class="select" name="teachers" multiple size="8">{% for t in teachers %}<option>{{ t }}</option>{% endfor %}</select>
+      <span class="field__hint">Кілька — з Ctrl (або ⌘)</span>
+    </label>
+    <div class="radio-cards" role="radiogroup" aria-label="Тип правила">
+      {% for k, v in kinds.items() %}
+        <label class="radio-card"><input type="radio" name="kind" value="{{ k }}" {{ 'checked' if loop.first }}><span>{{ v }}</span></label>
+      {% endfor %}
+    </div>
+    <div class="field" data-for="unavailable">
+      <span class="field__label">Дні</span>
+      <div class="checks">{% for d in weekdays %}<label class="check-chip"><input type="checkbox" name="days" value="{{ loop.index0 }}"><span>{{ d[:2] }}</span></label>{% endfor %}</div>
+      <span class="field__hint">Нічого не вибрано — усі дні</span>
+    </div>
+    <div class="field" data-for="unavailable">
+      <span class="field__label">Пари</span>{{ ui.pair_checks('pairs', pairs=pairs) }}
+      <span class="field__hint">Нічого не вибрано — усі пари</span>
+    </div>
+    <label class="field" data-for="max_days" hidden><span class="field__label">Робочих днів на тиждень, не більше</span><input class="input" type="number" name="value" min="1" max="5" value="4"></label>
+    <label class="field" data-for="room" hidden><span class="field__label">Аудиторія</span>
+      <select class="select" name="room"><option value="">—</option>{% for r in rooms %}<option>{{ r }}</option>{% endfor %}</select>
+    </label>
+    <div class="radio-cards" role="radiogroup" aria-label="Сила правила">
+      <label class="radio-card"><input type="radio" name="hard" value="1" checked><span>Жорстко<small>ніколи не порушувати</small></span></label>
+      <label class="radio-card"><input type="radio" name="hard" value="0"><span>За можливості<small>уникати, якщо вдається</small></span></label>
+    </div>
+    <div><button class="btn btn--primary">Додати правило</button></div>
+  </form>
+</details>
+
+{% if rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Правило</th><th>Викладачі</th><th>Сила</th><th></th></tr></thead>
+    <tbody>
+      {% for p in rows %}
+      {% set rule = p.to_rule() %}
+      <tr style="{{ 'opacity:.55' if not p.active }}">
+        <td><strong>{{ p.label or kinds[p.kind] }}</strong><div class="muted">{{ rule.describe() }}</div></td>
+        <td>{{ p.teachers|join(', ') }}</td>
+        <td><span class="badge {{ 'badge--purple' if p.hard else 'badge--neutral' }}">{{ 'жорстко' if p.hard else 'за можливості' }}</span>{% if not p.active %} <span class="badge badge--yellow">вимкнено</span>{% endif %}</td>
+        <td class="btn-row">
+          <form method="post" action="{{ url_for('admin.preference_action', pref_id=p.id, action='toggle') }}">{{ ui.csrf() }}<button class="btn btn--ghost btn--xs">{{ 'Вимкнути' if p.active else 'Увімкнути' }}</button></form>
+          <form method="post" action="{{ url_for('admin.preference_action', pref_id=p.id, action='delete') }}">{{ ui.csrf() }}<button class="btn btn--ghost btn--xs">Видалити</button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p class="muted">Ще {{ constraints|length }} обмежень зі схвалених заявок викладачів — на сторінці <a href="{{ url_for('admin.constraints') }}">«Обмеження»</a>; генератор враховує і їх.</p>
+
+<script>
+  const form = document.getElementById('pref-form');
+  function sync() {
+    const kind = form.querySelector('input[name=kind]:checked').value;
+    form.querySelectorAll('[data-for]').forEach(el => { el.hidden = !el.dataset.for.split(' ').includes(kind); });
+  }
+  form.addEventListener('change', sync);
+  sync();
+</script>
+{% endblock %}

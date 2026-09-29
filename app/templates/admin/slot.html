@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}{{ group }}, {{ pair }} пара{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin.day', date=day.isoformat(), course=course) }}">← До редактора дня</a>
+<div class="page__head">
+  <div>
+    <p class="eyebrow">{{ info.weekday }}, {{ info.human }} · {{ info.week|lower if info.week }}</p>
+    <h1 class="page__title">{{ group }} · {{ pair }} пара <span class="muted" style="font-size:var(--app-text-md);font-weight:400">{{ bells[pair][0] }}–{{ bells[pair][1] }}</span></h1>
+  </div>
+</div>
+
+{% if warnings %}
+<div class="flash flash--warn" role="alert">
+  <strong>Перевірте:</strong>
+  <ul class="alert-list">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if current %}
+  <ol class="lessons">{{ ui.lesson_card(current, 'group', 'admin') }}</ol>
+  {% if current.missing %}
+    <p class="flash flash--error">{{ current.missing|join(', ') }} цього дня відсутні{% if absence %} ({{ absence.REASONS[absence.reason]|lower }}){% endif %}. Оберіть заміну або скасуйте пару.</p>
+  {% endif %}
+{% else %}
+  <div class="empty">У групи цієї пари немає. Можна додати пару.</div>
+{% endif %}
+
+{% set f = form %}
+{% macro force_box() %}
+  {% if warnings %}<label class="btn-row"><input type="checkbox" name="force" value="1"> Зберегти попри попередження</label>{% endif %}
+{% endmacro %}
+
+{% if current and current.status != 'cancelled' %}
+<details class="card" {{ 'open' if current.missing or f.get('action') in ('substitute', None) }}>
+  <summary>Заміна викладача</summary>
+  <form class="form" method="post">
+    {{ ui.csrf() }}
+    <input type="hidden" name="action" value="substitute">
+    <input type="hidden" name="course" value="{{ course or '' }}">
+    {% if absence %}<input type="hidden" name="absence_id" value="{{ absence.id }}">{% endif %}
+    {% if candidates %}
+      <div class="field">
+        <span class="field__label">Вільні викладачі (найкращі зверху)</span>
+        <ul class="candidates">
+          {% for c in candidates %}
+          <li class="candidate">
+            <div><div class="candidate__name">{{ c.teacher }}</div><div class="candidate__why">{{ c.reasons|join(' · ') or 'вільний' }} · пар цього дня: {{ c.load }}</div></div>
+            <button class="btn btn--secondary btn--xs" type="button" onclick="pick(this.form, {{ c.teacher|tojson }})">Обрати</button>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% for t in current.teachers %}
+      <label class="field">
+        <span class="field__label">{{ 'Замість ' ~ t if current.teachers|length > 1 else 'Викладач' }}</span>
+        <select class="select" name="teachers" data-teacher-select>
+          {% for name in teachers %}<option {{ 'selected' if name == (f.getlist('teachers')[loop.index0] if f.getlist('teachers') else t) }}>{{ name }}</option>{% endfor %}
+        </select>
+      </label>
+    {% endfor %}
+    <div class="form-grid">
+      <label class="field"><span class="field__label">Дисципліна</span><input class="input" name="subject" value="{{ f.get('subject', current.subject) }}"></label>
+      <label class="field"><span class="field__label">Аудиторія</span>
+        <select class="select" name="rooms"><option value="">як у розкладі ({{ current.rooms|join(', ') }})</option>{% for r in rooms %}<option>{{ r }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <label class="field"><span class="field__label">Причина (бачать студенти)</span><input class="input" name="reason" value="{{ f.get('reason', '') }}" placeholder="Наприклад: викладач на лікарняному"></label>
+    {{ force_box() }}
+    <button class="btn btn--primary">Зберегти заміну</button>
+  </form>
+</details>
+
+<details class="card" {{ 'open' if f.get('action') == 'room' }}>
+  <summary>Інша аудиторія</summary>
+  <form class="form" method="post">
+    {{ ui.csrf() }}<input type="hidden" name="action" value="room"><input type="hidden" name="course" value="{{ course or '' }}">
+    <label class="field"><span class="field__label">Вільні аудиторії в цю пару</span>
+      <select class="select" name="rooms">{% for r in rooms %}<option>{{ r }}</option>{% endfor %}</select>
+    </label>
+    {{ force_box() }}
+    <button class="btn btn--primary">Змінити аудиторію</button>
+  </form>
+</details>
+
+<details class="card" {{ 'open' if f.get('action') == 'move' }}>
+  <summary>Перенести пару</summary>
+  <form class="form" method="post">
+    {{ ui.csrf() }}<input type="hidden" name="action" value="move"><input type="hidden" name="course" value="{{ course or '' }}">
+    <div class="form-grid">
+      <label class="field"><span class="field__label">На дату</span><input class="input" type="date" name="target_date" value="{{ f.get('target_date', day.isoformat()) }}"></label>
+      <label class="field"><span class="field__label">Пара</span>
+        <select class="select" name="target_pair">{% for p in pairs %}<option value="{{ p }}" {{ 'selected' if f.get('target_pair') == p|string }}>{{ p }} ({{ bells[p][0] }})</option>{% endfor %}</select>
+      </label>
+    </div>
+    <label class="field"><span class="field__label">Причина</span><input class="input" name="reason" value="{{ f.get('reason', '') }}"></label>
+    {{ force_box() }}
+    <button class="btn btn--primary">Перенести</button>
+  </form>
+</details>
+
+<details class="card" {{ 'open' if f.get('action') == 'cancel' }}>
+  <summary>Скасувати пару</summary>
+  <form class="form" method="post">
+    {{ ui.csrf() }}<input type="hidden" name="action" value="cancel"><input type="hidden" name="course" value="{{ course or '' }}">
+    {% if absence %}<input type="hidden" name="absence_id" value="{{ absence.id }}">{% endif %}
+    <label class="field"><span class="field__label">Причина (бачать студенти)</span><input class="input" name="reason" placeholder="Наприклад: викладач на лікарняному"></label>
+    <button class="btn btn--accent">Скасувати пару</button>
+  </form>
+</details>
+{% endif %}
+
+{% if not current or current.status == 'cancelled' %}
+<details class="card" open>
+  <summary>{{ 'Поставити пару на місце скасованої' if current else 'Додати пару' }}</summary>
+  <form class="form" method="post">
+    {{ ui.csrf() }}<input type="hidden" name="action" value="add"><input type="hidden" name="course" value="{{ course or '' }}">
+    <div class="form-grid">
+      <label class="field"><span class="field__label">Дисципліна</span><input class="input" name="subject" value="{{ f.get('subject', '') }}" required></label>
+      <label class="field"><span class="field__label">Викладач</span>
+        <select class="select" name="teachers">{% for name in teachers %}<option {{ 'selected' if name in f.getlist('teachers') }}>{{ name }}</option>{% endfor %}</select>
+      </label>
+      <label class="field"><span class="field__label">Аудиторія</span>
+        <select class="select" name="rooms"><option value="">—</option>{% for r in rooms %}<option>{{ r }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <label class="field"><span class="field__label">Причина</span><input class="input" name="reason" value="{{ f.get('reason', '') }}"></label>
+    {{ force_box() }}
+    <button class="btn btn--primary">Додати</button>
+  </form>
+</details>
+{% endif %}
+
+{% if current and current.change %}
+<form method="post" class="card btn-row" style="justify-content:space-between">
+  {{ ui.csrf() }}<input type="hidden" name="action" value="reset"><input type="hidden" name="course" value="{{ course or '' }}">
+  <span class="muted">Зміну внесено {{ current.change.created_at.strftime('%d.%m %H:%M') }}.</span>
+  <button class="btn btn--danger btn--sm">Повернути як у розкладі</button>
+</form>
+{% endif %}
+
+<script>
+  function pick(form, teacher) {
+    const select = form.querySelector('[data-teacher-select]');
+    select.value = teacher;
+    select.focus();
+  }
+</script>
+{% endblock %}

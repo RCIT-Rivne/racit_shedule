@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Редактор дня{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Редактор дня</p>
+    <h1 class="page__title">{{ info.weekday }}, {{ info.human }}
+      <span class="muted" style="font-size:var(--app-text-md);font-weight:400">
+        {% if info.off %}{{ info.reason }}{% else %}{{ info.week|lower }}{% if info.saturday_as %}, за розкладом: {{ info.saturday_as|lower }}{% endif %}{% endif %}
+      </span>
+    </h1>
+  </div>
+  <form class="btn-row" method="get">
+    <input type="hidden" name="course" value="{{ course }}">
+    <label class="visually-hidden" for="date">Дата</label>
+    <input class="input" type="date" id="date" name="date" value="{{ day.isoformat() }}" style="width:auto">
+    <button class="btn btn--secondary btn--sm">Перейти</button>
+  </form>
+</div>
+
+<nav class="tabs" aria-label="День тижня">
+  {% for d, i in week %}
+    <a class="tab {{ 'is-active' if d == day }}" href="{{ url_for('admin.day', date=d.isoformat(), course=course) }}">{{ i.weekday[:2] }} {{ d.strftime('%d.%m') }}</a>
+  {% endfor %}
+</nav>
+
+{% if need %}
+<div class="flash flash--error">
+  <strong>{{ need|length }} пар без викладача:</strong>
+  {% for s in need %}<a href="{{ url_for('admin.slot', date=day.isoformat(), group=s.group, pair=s.pair, course=course) }}">{{ s.group }}, {{ s.pair }} пара ({{ s.missing|join(', ') }})</a>{{ ', ' if not loop.last }}{% endfor %}
+</div>
+{% endif %}
+
+<div class="page__head">
+  <nav class="tabs" aria-label="Курс">
+    {% for c in courses %}<a class="tab {{ 'is-active' if c == course }}" href="{{ url_for('admin.day', date=day.isoformat(), course=c) }}">{{ c }} курс</a>{% endfor %}
+  </nav>
+  <div class="legend" aria-label="Позначення">
+    <span><i style="background:var(--st-substitute-bg)"></i>заміна</span>
+    <span><i style="background:var(--st-added-bg)"></i>додаткова / перенесена</span>
+    <span><i style="background:var(--st-room-bg)"></i>інша аудиторія</span>
+    <span><i style="background:var(--st-cancel-bg)"></i>скасовано</span>
+    <span><i style="box-shadow:inset 0 0 0 2px var(--brand-orange)"></i>викладач відсутній</span>
+  </div>
+</div>
+
+{% if info.off %}
+  <div class="empty it-dots"><p class="empty__title">Занять немає</p><p>{{ info.reason }}</p></div>
+{% else %}
+<div class="table-wrap">
+  <table class="grid-edit">
+    <thead><tr><th>Пара</th>{% for n in names %}<th>{{ n }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for p in pairs %}
+      <tr>
+        <th scope="row">{{ p }}<small>{{ bells[p][0] }}</small></th>
+        {% for n in names %}
+          {% set s = grid.get((n, p)) %}
+          <td>
+            <a class="cell {% if s %}cell--{{ s.status }}{% if s.missing %} cell--missing{% endif %}{% endif %}"
+               href="{{ url_for('admin.slot', date=day.isoformat(), group=n, pair=p, course=course) }}">
+              {% if s %}
+                <span class="cell__subject">{{ s.subject }}</span>
+                <span class="cell__meta">{{ s.teachers|join(', ') }}{% if s.rooms %} · {{ s.rooms|join(', ') }}{% endif %}</span>
+                {% if s.status == 'cancelled' %}<span class="cell__meta">скасовано</span>{% endif %}
+                {% if s.missing %}<span class="cell__meta" style="color:var(--color-error-text)">відсутній: {{ s.missing|join(', ') }}</span>{% endif %}
+              {% else %}
+                <span class="cell__empty">+ додати пару</span>
+              {% endif %}
+            </a>
+          </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p class="muted">
+  {% if show_all %}<a href="{{ url_for('admin.day', date=day.isoformat(), course=course) }}">Показати лише пари цього курсу</a>
+  {% else %}Показано пари, які бувають у цього курсу. <a href="{{ url_for('admin.day', date=day.isoformat(), course=course, all=1) }}">Показати всі 7 пар</a>{% endif %}
+</p>
+
+{% if changed %}
+<section class="section">
+  <h2 class="section__title">Зміни цього дня ({{ changed|length }})</h2>
+  <p class="muted">Студенти бачать їх на сторінці <a href="{{ url_for('public.changes', date=day.isoformat()) }}">«Зміни»</a> і у своєму розкладі.</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -116,12 +116,65 @@ class Group:
 
 
 @dataclass
+class TeacherRule:
+    """Вподобання/обмеження викладача (або групи викладачів, напр. «Адміністрація»).
+
+    kind:
+      unavailable — не ставити пари в дні `days` на пари `pairs` (None — усі);
+      max_days    — не більше `value` робочих днів на тиждень (методичний день = 4);
+      room        — пари викладача лише в аудиторії `room`.
+    hard=True — правило не порушується ніколи; False — «за можливості» (штраф).
+    """
+
+    teachers: list[str]
+    kind: str
+    days: list[int] | None = None
+    pairs: list[int] | None = None
+    hard: bool = True
+    value: int | None = None
+    room: str | None = None
+    label: str = ""
+
+    KINDS = ("unavailable", "max_days", "room")
+
+    def cells(self, n_days: int, n_pairs: int) -> set[tuple[int, int]]:
+        days = self.days if self.days is not None else range(n_days)
+        pairs = self.pairs if self.pairs is not None else range(1, n_pairs + 1)
+        return {(d, p) for d in days for p in pairs}
+
+    def to_dict(self) -> dict:
+        return {k: getattr(self, k) for k in ("teachers", "kind", "days", "pairs", "hard", "value", "room", "label")}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> TeacherRule:
+        return cls(**{k: data.get(k) for k in ("teachers", "kind", "days", "pairs", "hard", "value", "room", "label")
+                      if data.get(k) is not None})
+
+    def describe(self) -> str:
+        days = ", ".join(DAYS[d].lower() for d in self.days) if self.days is not None else "усі дні"
+        pairs = f"пари {', '.join(map(str, self.pairs))}" if self.pairs else "усі пари"
+        strength = "" if self.hard else "за можливості "
+        if self.kind == "unavailable":
+            return f"{strength}не ставити: {days}, {pairs}"
+        if self.kind == "max_days":
+            return f"{strength}не більше {self.value} робочих днів на тиждень"
+        if self.kind == "room":
+            return f"{strength}лише аудиторія {self.room}"
+        return self.kind
+
+
+@dataclass
 class ProblemData:
     lessons: list[Lesson]
     groups: list[Group]
     rooms: list[Room]
     warnings: list[str] = field(default_factory=list)
     days: list[str] = field(default_factory=lambda: list(DAYS))
+    # Вподобання й обмеження викладачів.
+    rules: list[TeacherRule] = field(default_factory=list)
+
+    def rules_for(self, teacher: str, kind: str) -> list[TeacherRule]:
+        return [r for r in self.rules if r.kind == kind and teacher in r.teachers]
 
     @property
     def teachers(self) -> list[str]:

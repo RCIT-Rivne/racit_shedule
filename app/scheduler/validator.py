@@ -6,7 +6,9 @@ from collections import Counter, defaultdict
 from .models import WEEKS, Issue, Schedule
 
 
-def validate(schedule: Schedule, min_pairs: int = 3, max_pairs: int = 4, max_teacher: int = 4) -> list[Issue]:
+def validate(
+    schedule: Schedule, min_pairs: int = 3, max_pairs: int = 4, max_teacher: int = 4, max_late_days: int = 1
+) -> list[Issue]:
     issues: list[Issue] = []
     data = schedule.data
 
@@ -92,6 +94,40 @@ def validate(schedule: Schedule, min_pairs: int = 3, max_pairs: int = 4, max_tea
     for (t, w, d), n in teacher_day.items():
         if n > max_teacher:
             issues.append(Issue("error", "Навантаження викладача", f"{t}: {_where(w, d)} — {n} пар"))
+
+    # Вподобання викладачів.
+    for rule in data.rules:
+        severity = "error" if rule.hard else "warning"
+        title = f"Вподобання{': ' + rule.label if rule.label else ''}"
+        for t in rule.teachers:
+            if rule.kind == "unavailable":
+                cells = rule.cells(len(data.days), 7)
+                for (tt, w, d, pair) in teacher_slots:
+                    if tt == t and (d, pair) in cells:
+                        issues.append(Issue(severity, title, f"{t}: {_where(w, d)}, пара {pair} — {rule.describe()}"))
+            elif rule.kind == "max_days":
+                for w in range(len(WEEKS)):
+                    days = {d for (tt, ww, d, _) in teacher_slots if tt == t and ww == w}
+                    if len(days) > rule.value:
+                        issues.append(Issue(severity, title, f"{t}: {WEEKS[w].lower()} — {len(days)} робочих днів, {rule.describe()}"))
+            elif rule.kind == "room":
+                for p in schedule.placements:
+                    l = schedule.lesson(p.lesson_id)
+                    if t in l.teachers:
+                        i = l.teachers.index(t)
+                        room = p.rooms[i] if i < len(p.rooms) else None
+                        if room and room != rule.room:
+                            issues.append(Issue(severity, title, f"{t}: {_where(p.week, p.day)}, пара {p.pair} — ауд. {room}, а потрібна {rule.room}"))
+
+    # Перші пари: не більше одного дня на тиждень без першої пари зміни.
+    for group in data.groups:
+        first = min(group.pair_numbers())
+        for w in range(len(WEEKS)):
+            late = [data.days[d] for d in range(len(data.days))
+                    if (items := by_group_day.get((group.name, w, d))) and min(p for p, _ in items) > first]
+            if len(late) > max_late_days:
+                issues.append(Issue("warning", "Без першої пари",
+                                    f"{group.name}: {WEEKS[w].lower()} — {len(late)} дні(в) без {first}-ї пари ({', '.join(late)})"))
 
     # Відповідність навчальному плану.
     for l in data.lessons:

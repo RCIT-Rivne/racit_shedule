@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Відсутності{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Лікарняні, відрядження</p>
+    <h1 class="page__title">Відсутності викладачів</h1>
+  </div>
+</div>
+
+<details class="card" {{ 'open' if not rows }}>
+  <summary>Додати відсутність</summary>
+  <form class="form" method="post">
+    {{ ui.csrf() }}
+    <div class="form-grid">
+      <label class="field"><span class="field__label">Викладач</span>
+        <select class="select" name="teacher" required><option value="">—</option>{% for t in teachers %}<option>{{ t }}</option>{% endfor %}</select>
+      </label>
+      <label class="field"><span class="field__label">Причина</span>
+        <select class="select" name="reason">{% for k, v in reasons.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+      </label>
+      <label class="field"><span class="field__label">З</span><input class="input" type="date" name="date_from" value="{{ today }}" required></label>
+      <label class="field"><span class="field__label">По</span><input class="input" type="date" name="date_to"></label>
+    </div>
+    <div class="field"><span class="field__label">Пари</span>{{ ui.pair_checks('pairs', pairs=pairs) }}<span class="field__hint">Нічого не вибрано — увесь день</span></div>
+    <label class="field"><span class="field__label">Примітка</span><input class="input" name="note"></label>
+    <button class="btn btn--primary">Зберегти</button>
+  </form>
+</details>
+
+{% if not rows %}<div class="empty it-dots">Відсутностей немає.</div>{% endif %}
+<div class="section">
+  {% for a in rows %}
+  <article class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="btn-row" style="justify-content:space-between">
+      <div class="btn-row">
+        <strong>{{ a.teacher }}</strong>
+        <span class="badge badge--yellow">{{ reasons[a.reason] }}</span>
+        <span>{{ ui.dates_text(a.date_from, a.date_to) }}, {{ ui.pairs_text(a.pairs) }}</span>
+        {% if a.request_id %}<span class="badge badge--neutral">із заявки</span>{% endif %}
+      </div>
+      <form method="post" action="{{ url_for('admin.delete_absence', absence_id=a.id) }}">{{ ui.csrf() }}<button class="btn btn--ghost btn--xs">Видалити</button></form>
+    </div>
+    {% if a.note %}<p class="muted">{{ a.note }}</p>{% endif %}
+    {% set left = affected.get(a.id, []) %}
+    {% if a.id in affected %}
+      {% if left %}
+        <p><strong style="color:var(--color-error-text)">Без рішення: {{ left|length }} пар</strong></p>
+        <div class="chips">
+          {% for s in left %}<a class="chip" href="{{ url_for('admin.slot', date=s.date.isoformat(), group=s.group, pair=s.pair) }}">{{ s.date.strftime('%d.%m') }} · {{ s.pair }} пара · {{ s.group }}</a>{% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Усі пари цього викладача на ці дні вже мають заміну або скасовані.</p>
+      {% endif %}
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

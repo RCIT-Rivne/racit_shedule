@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}{{ name }}{% endblock %}
+{% block page_class %}{{ 'page--narrow' if view == 'day' else 'page--wide' }}{% endblock %}
+{% block content %}
+{% set me = name if kind == 'teacher' else None %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">{{ 'Група' if kind == 'group' else 'Викладач' }}</p>
+    <h1 class="page__title">{{ name }}</h1>
+  </div>
+  <nav class="segmented" aria-label="Вигляд">
+    <a href="{{ switch_url if view == 'week' else '#' }}" class="{{ 'is-active' if view == 'day' }}" {% if view == 'day' %}aria-current="page"{% endif %}>День</a>
+    <a href="{{ switch_url if view == 'day' else '#' }}" class="{{ 'is-active' if view == 'week' }}" {% if view == 'week' %}aria-current="page"{% endif %}>Тиждень</a>
+  </nav>
+</div>
+
+<nav class="daynav" aria-label="Дата">
+  <a class="btn btn--ghost btn--sm" href="{{ prev_url }}" aria-label="{{ 'Попередній день' if view == 'day' else 'Попередній тиждень' }}">←<span class="daynav__label"> {{ 'Попередній' if view == 'day' else 'Попередній тиждень' }}</span></a>
+  <div class="daynav__date">
+    {% if view == 'day' %}
+      {% set info = days[0][0] %}
+      <span class="daynav__main">{{ info.weekday }}, {{ info.human }}</span>
+      <span class="daynav__sub">
+        {% if info.off %}{{ info.reason }}{% else %}{{ info.week }}{% if info.saturday_as %} · за розкладом: {{ info.saturday_as|lower }}{% endif %}{% endif %}
+      </span>
+    {% else %}
+      <span class="daynav__main">{{ human_date(days[0][0].date) }} – {{ human_date(days[-1][0].date) }}</span>
+      <span class="daynav__sub">{{ (days|selectattr('0.week')|map(attribute='0.week')|first) or '' }}</span>
+    {% endif %}
+  </div>
+  <a class="btn btn--ghost btn--sm" href="{{ next_url }}" aria-label="{{ 'Наступний день' if view == 'day' else 'Наступний тиждень' }}"><span class="daynav__label">{{ 'Наступний' if view == 'day' else 'Наступний тиждень' }} </span>→</a>
+  <a class="btn btn--secondary btn--xs" href="{{ today_url }}">Сьогодні</a>
+</nav>
+
+{% if view == 'day' %}
+  {% set info, slots = days[0] %}
+  {% if info.off %}
+    <div class="empty it-dots"><p class="empty__title">Занять немає</p><p>{{ info.weekday }} — {{ info.reason }}.</p></div>
+  {% elif not slots %}
+    <div class="empty it-dots"><p class="empty__title">Пар немає</p><p>У цей день у {{ 'групи' if kind == 'group' else 'вас' if me else 'викладача' }} немає занять.</p></div>
+  {% elif slots[0].status == 'practice' %}
+    <div class="empty it-dots"><p class="empty__title">Практика</p><p>Група цього дня на практиці — пар за розкладом немає.</p></div>
+  {% else %}
+    <ol class="lessons">
+      {% set ns = namespace(prev=None) %}
+      {% for s in slots %}
+        {% if ns.prev and s.pair - ns.prev > 1 and kind == 'teacher' %}
+          <li class="lesson lesson--gap"><div class="lesson__time"><span class="lesson__start">вікно</span></div><div class="lesson__main muted">{{ s.pair - ns.prev - 1 }} пара(и) без занять</div><div></div></li>
+        {% endif %}
+        {{ ui.lesson_card(s, 'teacher' if kind == 'teacher' else 'group', me) }}
+        {% set ns.prev = s.pair %}
+      {% endfor %}
+    </ol>
+  {% endif %}
+{% else %}
+  <div class="week {{ 'week--5' if days|length == 5 }}">
+    {% for info, slots in days %}
+      <section class="week__day {{ 'is-today' if info.date == today }}" aria-label="{{ info.weekday }}">
+        <div class="week__head"><span class="week__name">{{ info.weekday }}</span><span class="week__date">{{ info.date.strftime('%d.%m') }}</span></div>
+        {% if info.saturday_as %}<p class="week__note">за розкладом: {{ info.saturday_as|lower }}</p>{% endif %}
+        {% if info.off %}
+          <div class="mini mini--off">{{ info.reason }}</div>
+        {% elif not slots %}
+          <div class="mini mini--off">пар немає</div>
+        {% elif slots[0].status == 'practice' %}
+          <div class="mini mini--off">практика</div>
+        {% else %}
+          {% for s in slots %}{{ ui.mini(s, 'teacher' if kind == 'teacher' else 'group', me) }}{% endfor %}
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

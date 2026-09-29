@@ -14,12 +14,16 @@
     менше чи більше — у чисельнику, обирається для кожної дисципліни окремо,
     як у шаблоні коледжу: дві «половинки» ділять одну пару (Математика в
     чисельнику / Біологія в знаменнику), і тижні виходять рівними;
-  * одночасних занять (крім фізкультури) не більше, ніж аудиторій.
+  * одночасних занять (крім фізкультури) не більше, ніж аудиторій;
+  * жорсткі вподобання викладачів (TeacherRule, hard=True): не ставити в
+    певні дні/пари, не більше N робочих днів на тиждень.
 
 М'які обмеження (штрафи в цільовій функції, у порядку пріоритету з правил):
   * навчальний день групи — 3–4 пари без «вікон», без вільних днів;
   * без двох однакових дисциплін в один день;
   * без переходу між змінами;
+  * у групи не більше одного дня на тиждень без першої пари зміни;
+  * м'які вподобання викладачів («за можливості не першу пару», методичний день);
   * без «вікон» у викладачів;
   * рівномірне навантаження викладачів по днях;
   * чисельник і знаменник максимально схожі (однакова «форма» дня групи);
@@ -61,12 +65,18 @@ class SolverConfig:
     w_gap: int = 1000
     w_duplicate: int = 300
     w_cross_shift: int = 200
+    w_late_day: int = 500
+    w_pref_days: int = 150
+    w_pref_avoid: int = 60
+    # Скільки днів на тиждень група може починати не з першої пари зміни.
+    max_late_days: int = 1
     w_free_day: int = 100
     w_teacher_window: int = 30
     w_week_shape: int = 20
     w_teacher_balance: int = 5
     w_computer_rooms: int = 50
     w_week_diff: int = 2
+    w_stability: int = 3  # за кожну пару, зрушену відносно попереднього розкладу (лише з hint)
     w_late_start: int = 1
 
 
@@ -77,6 +87,9 @@ PENALTY_NAMES = {
     "w_gap": "Вікна у групи",
     "w_free_day": "Вільні дні у групи",
     "w_cross_shift": "Пари поза своєю зміною",
+    "w_late_day": "Групи без першої пари частіше 1 разу на тиждень",
+    "w_pref_days": "Вподобання: зайві робочі дні викладачів",
+    "w_pref_avoid": "Вподобання: небажані пари викладачів",
     "w_duplicate": "Однакові дисципліни в день",
     "w_teacher_window": "Вікна викладачів",
     "w_week_shape": "Різна форма чисельника і знаменника",
@@ -84,6 +97,7 @@ PENALTY_NAMES = {
     "w_week_diff": "Різні місця дробових дисциплін",
     "w_late_start": "Початок не з першої пари зміни",
     "w_computer_rooms": "Нестача комп'ютерних класів",
+    "w_stability": "Зрушені пари відносно попереднього розкладу",
 }
 
 
@@ -138,7 +152,12 @@ class _Progress(cp_model.CpSolverSolutionCallback):
             )
 
 
-def solve(data: ProblemData, config: SolverConfig | None = None, progress: ProgressFn | None = None) -> Schedule:
+def solve(
+    data: ProblemData,
+    config: SolverConfig | None = None,
+    progress: ProgressFn | None = None,
+    hint: list[Placement] | None = None,
+) -> Schedule:
     config = config or SolverConfig()
     model = cp_model.CpModel()
     n_days = len(data.days)
@@ -163,6 +182,23 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
     # (викладачі, схожість тижнів, ранній початок).
     core: list[tuple[str, int, cp_model.LinearExprT]] = []
     penalties: list[tuple[str, int, cp_model.LinearExprT]] = []
+
+    # --- Вподобання викладачів: коли не ставити (жорстко або «за можливості») ---
+    for rule in data.rules:
+        if rule.kind != "unavailable":
+            continue
+        cells = rule.cells(n_days, config.max_pair)
+        for l in data.lessons:
+            if not set(rule.teachers) & set(l.teachers):
+                continue
+            for d, p in cells:
+                if d < n_days and p in group_pairs[l.group]:
+                    for w in weeks:
+                        if rule.hard:
+                            model.add(x[l.id, w, d, p] == 0)
+                        else:
+                            penalties.append(("w_pref_avoid", config.w_pref_avoid, x[l.id, w, d, p]))
+
 
     # --- Тижневе навантаження дисципліни ---
     for l in data.lessons:
@@ -197,6 +233,7 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
             by_subject[l.subject_key].append(l)
 
         occupancy = {}
+        late_days: dict[int, list] = {w: [] for w in weeks}
         for w in weeks:
             for d in range(n_days):
                 occ = []
@@ -227,6 +264,10 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
                 late = [s for s, p in zip(starts, pairs) if p > first_pair]
                 if late:
                     penalties.append(("w_late_start", config.w_late_start, sum(late)))
+                # День без першої пари зміни (навчальний, але починається пізніше).
+                no_first = model.new_bool_var("")
+                model.add(no_first >= works - sum(y for y, p in zip(occ, pairs) if p <= first_pair))
+                late_days[w].append(no_first)
 
                 # Пара поза своєю зміною («перехід між змінами») — небажано.
                 for y, p in zip(occ, pairs):
@@ -243,6 +284,12 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
                         dup = model.new_int_var(0, len(pairs), "")
                         model.add(total <= 1 + dup)
                         core.append(("w_duplicate", config.w_duplicate, dup))
+
+        # Перші пари обов'язкові: не більше max_late_days днів на тиждень без першої пари.
+        for w in weeks:
+            extra = model.new_int_var(0, n_days, "")
+            model.add(sum(late_days[w]) <= config.max_late_days + extra)
+            core.append(("w_late_day", config.w_late_day, extra))
 
         # Однакова «форма» дня в чисельнику і знаменнику (різниця — лише
         # в тому, ЯКА дисципліна стоїть, а не ЧИ стоїть пара).
@@ -263,6 +310,8 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
     for teacher, lessons in by_teacher.items():
         weekly_max = sum(l.week_bounds[1] for l in lessons)
         ideal = math.ceil(weekly_max / n_days)
+        max_days_rules = data.rules_for(teacher, "max_days")
+        teacher_days: dict[int, list] = {w: [] for w in weeks}
         for w in weeks:
             for d in range(n_days):
                 per_pair: dict[int, list] = defaultdict(list)
@@ -274,6 +323,10 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
                         model.add(sum(vars_) <= 1)
                 day_load = sum(v for vs in per_pair.values() for v in vs)
                 model.add(day_load <= config.max_teacher_pairs_per_day)
+                if max_days_rules:
+                    works_day = model.new_bool_var("")
+                    model.add(day_load <= config.max_teacher_pairs_per_day * works_day)
+                    teacher_days[w].append(works_day)
                 over = model.new_int_var(0, config.max_teacher_pairs_per_day, "")
                 model.add(over >= day_load - ideal)
                 penalties.append(("w_teacher_balance", config.w_teacher_balance, over))
@@ -284,6 +337,16 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
                     busy = [sum(per_pair.get(p, [])) for p in range(used[0], used[-1] + 1)]
                     for v in _idle_slots(model, busy):
                         penalties.append(("w_teacher_window", config.w_teacher_window, v))
+
+        # Не більше N робочих днів на тиждень (один день для Бялика, методичний день тощо).
+        for rule in max_days_rules:
+            for w in weeks:
+                if rule.hard:
+                    model.add(sum(teacher_days[w]) <= rule.value)
+                else:
+                    extra = model.new_int_var(0, n_days, "")
+                    model.add(sum(teacher_days[w]) <= rule.value + extra)
+                    penalties.append(("w_pref_days", config.w_pref_days, extra))
 
     # --- Аудиторії: не більше одночасних занять, ніж є аудиторій ---
     if data.rooms:
@@ -310,6 +373,19 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
                 model.add(excess >= sum(terms) - computer_rooms)
                 penalties.append(("w_computer_rooms", config.w_computer_rooms, excess))
 
+    # Підказка: попередній розклад як стартова точка (щоб новий був схожим на нього).
+    if hint:
+        placed = {(p.lesson_id, p.week, p.day, p.pair) for p in hint}
+        values: dict[int, tuple] = {}  # одна змінна може стояти за обидва тижні
+        for key, var in x.items():
+            prev = values.get(var.index, (var, False))
+            values[var.index] = (var, prev[1] or key in placed)
+        for var, value in values.values():
+            model.add_hint(var, value)
+            # Стабільність: кожна пара, зрушена з попереднього місця, — невеликий штраф.
+            if value and config.w_stability:
+                penalties.append(("w_stability", config.w_stability, 1 - var))
+
     core_expr = sum(w * p for _, w, p in core)
     quality_expr = sum(w * p for _, w, p in penalties)
     callback = _Progress(progress)
@@ -325,6 +401,7 @@ def solve(data: ProblemData, config: SolverConfig | None = None, progress: Progr
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         model.add(core_expr <= int(solver.objective_value))
         # Повна підказка (усі змінні), щоб етап 2 одразу мав розв'язок етапу 1.
+        model.clear_hints()
         for i in range(len(model.proto.variables)):
             var = model.get_int_var_from_proto_index(i)
             model.add_hint(var, solver.value(var))

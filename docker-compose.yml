@@ -6,6 +6,9 @@ services:
     environment:
       SOLVER_TIME_LIMIT: "120"
       SOLVER_WORKERS: "0"  # 0 — усі ядра
+      # Перший адміністратор створюється, якщо адмінів ще немає. Змініть пароль!
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@rcit.ukr.education}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-demo-parol}"
     volumes:
       - schedule-data:/data
     restart: unless-stopped

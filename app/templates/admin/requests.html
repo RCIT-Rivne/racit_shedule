@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Заявки{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Від викладачів</p>
+    <h1 class="page__title">Заявки</h1>
+    <p class="page__lede">Схвалений лікарняний чи «не можу провести пари» стає відсутністю — її пари з'являться в «Потребують рішення». Постійне «не можу» стає обмеженням для наступної генерації.</p>
+  </div>
+</div>
+{% if not rows %}<div class="empty it-dots">Заявок немає.</div>{% endif %}
+<div class="section">
+  {% for r in rows %}
+  <article class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="btn-row" style="justify-content:space-between">
+      <div class="btn-row">
+        <strong>{{ r.teacher }}</strong>
+        <span class="badge badge--purple">{{ kinds[r.kind] }}</span>
+        <span class="badge {{ 'badge--yellow' if r.status == 'pending' else 'badge--blue' if r.status == 'approved' else 'badge--orange' }}">{{ statuses[r.status] }}</span>
+      </div>
+      <span class="muted">{{ r.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+    </div>
+    <div>
+      {% if r.kind == 'permanent' %}Кожен {{ weekdays[r.weekday]|lower }}, {{ ui.pairs_text(r.pairs) }}
+      {% else %}{{ ui.dates_text(r.date_from, r.date_to) }}{% if r.kind == 'day_off' %}, {{ ui.pairs_text(r.pairs) }}{% endif %}{% endif %}
+      {% if r.comment %}<div class="muted">«{{ r.comment }}»</div>{% endif %}
+      {% if r.admin_comment %}<div class="muted">Відповідь: {{ r.admin_comment }}</div>{% endif %}
+    </div>
+    {% if r.status == 'pending' %}
+    <form method="post" class="btn-row">
+      {{ ui.csrf() }}
+      <label class="visually-hidden" for="c{{ r.id }}">Коментар</label>
+      <input class="input" id="c{{ r.id }}" name="admin_comment" placeholder="Коментар для викладача (необов'язково)" style="flex:1 1 260px">
+      <button class="btn btn--primary btn--sm" formaction="{{ url_for('admin.decide', request_id=r.id, decision='approve') }}">Схвалити</button>
+      <button class="btn btn--danger btn--sm" formaction="{{ url_for('admin.decide', request_id=r.id, decision='reject') }}">Відхилити</button>
+    </form>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

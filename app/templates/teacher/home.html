@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Мій кабінет{% endblock %}
+{% block content %}
+{% set me = current_user.teacher_name %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Кабінет викладача</p>
+    <h1 class="page__title">{{ me or current_user.full_name }}</h1>
+  </div>
+  {% if me and has_timetable %}
+  <div class="btn-row">
+    <a class="btn btn--secondary btn--sm" href="{{ url_for('public.teacher', name=me) }}">Розклад на день</a>
+    <a class="btn btn--secondary btn--sm" href="{{ url_for('public.teacher', name=me, view='week') }}">На тиждень</a>
+  </div>
+  {% endif %}
+</div>
+
+{% if not me %}
+  <p class="flash flash--warn">Акаунт ще не прив'язаний до викладача в розкладі. Зверніться до навчальної частини.</p>
+{% endif %}
+
+<div class="layout-2">
+  <div class="section">
+    {% for info, slots in days %}
+      <section class="section">
+        <h2 class="section__title">{{ 'Сьогодні' if info.date == today else 'Завтра' if (info.date - today).days == 1 else info.weekday }}, {{ info.human }}
+          <span class="muted" style="font-size:var(--app-text-sm);font-weight:400">
+            {% if info.off %}{{ info.reason }}{% else %}{{ info.week|lower }}{% if info.saturday_as %}, за розкладом: {{ info.saturday_as|lower }}{% endif %}{% endif %}
+          </span>
+        </h2>
+        {% if info.off or not slots %}
+          <div class="empty">Пар немає</div>
+        {% else %}
+          <ol class="lessons">{% for s in slots %}{{ ui.lesson_card(s, 'teacher', me) }}{% endfor %}</ol>
+        {% endif %}
+      </section>
+    {% endfor %}
+    {% if not has_timetable %}<div class="empty it-dots">Розклад ще не опубліковано.</div>{% endif %}
+  </div>
+
+  <aside class="section">
+    <div class="card">
+      <h2 class="card__title">Нова заявка</h2>
+      <form class="form" method="post" action="{{ url_for('teacher.create_request') }}" id="request-form">
+        {{ ui.csrf() }}
+        <div class="radio-cards" role="radiogroup" aria-label="Тип заявки">
+          <label class="radio-card"><input type="radio" name="kind" value="sick" checked><span>Лікарняний<small>з дати по дату</small></span></label>
+          <label class="radio-card"><input type="radio" name="kind" value="day_off"><span>Не можу провести пари<small>у конкретний день</small></span></label>
+          <label class="radio-card"><input type="radio" name="kind" value="permanent"><span>Постійно не можу<small>у певний день тижня</small></span></label>
+        </div>
+        <div class="form-grid" data-for="sick day_off">
+          <label class="field"><span class="field__label">З</span><input class="input" type="date" name="date_from" value="{{ tomorrow }}"></label>
+          <label class="field" data-for="sick"><span class="field__label">По</span><input class="input" type="date" name="date_to"></label>
+        </div>
+        <label class="field" data-for="permanent" hidden>
+          <span class="field__label">День тижня</span>
+          <select class="select" name="weekday">{% for d in weekdays %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}</select>
+        </label>
+        <div class="field" data-for="day_off permanent" hidden>
+          <span class="field__label">Які пари</span>
+          {{ ui.pair_checks('pairs', pairs=pairs) }}
+          <span class="field__hint">Нічого не вибрано — увесь день</span>
+        </div>
+        <label class="field">
+          <span class="field__label">Коментар</span>
+          <textarea class="textarea" name="comment" placeholder="Наприклад: курси підвищення кваліфікації"></textarea>
+        </label>
+        <button class="btn btn--primary" {{ 'disabled' if not me }}>Надіслати</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 class="card__title">Мої заявки</h2>
+      {% if not requests %}<p class="muted">Заявок ще немає.</p>{% endif %}
+      <ul class="form">
+        {% for r in requests %}
+        <li style="display:flex;flex-direction:column;gap:4px">
+          <div class="btn-row">
+            <strong>{{ kinds[r.kind] }}</strong>
+            <span class="badge {{ 'badge--yellow' if r.status == 'pending' else 'badge--blue' if r.status == 'approved' else 'badge--orange' }}">{{ statuses[r.status] }}</span>
+          </div>
+          <span class="muted">
+            {% if r.kind == 'permanent' %}{{ weekdays[r.weekday] }}, {{ ui.pairs_text(r.pairs) }}
+            {% else %}{{ ui.dates_text(r.date_from, r.date_to) }}{% if r.kind == 'day_off' %}, {{ ui.pairs_text(r.pairs) }}{% endif %}{% endif %}
+          </span>
+          {% if r.admin_comment %}<span class="muted">Відповідь: {{ r.admin_comment }}</span>{% endif %}
+          {% if r.status == 'pending' %}
+            <form method="post" action="{{ url_for('teacher.withdraw', request_id=r.id) }}">{{ ui.csrf() }}<button class="btn btn--ghost btn--xs">Відкликати</button></form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {% if absences %}
+    <div class="card">
+      <h2 class="card__title">Моя відсутність</h2>
+      <ul class="form">
+        {% for a in absences %}<li>{{ reasons[a.reason] }}: {{ ui.dates_text(a.date_from, a.date_to) }}, {{ ui.pairs_text(a.pairs) }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </aside>
+</div>
+
+<script>
+  // Показувати лише поля, потрібні для обраного типу заявки.
+  const form = document.getElementById('request-form');
+  function sync() {
+    const kind = form.querySelector('input[name=kind]:checked').value;
+    form.querySelectorAll('[data-for]').forEach(el => { el.hidden = !el.dataset.for.split(' ').includes(kind); });
+  }
+  form.addEventListener('change', sync);
+  sync();
+</script>
+{% endblock %}

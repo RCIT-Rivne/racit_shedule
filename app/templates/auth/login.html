@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Вхід{% endblock %}
+{% block body %}
+<main class="login">
+  <div class="login__panel it-dots it-dots--on-violet">
+    <img src="{{ url_for('static', filename='img/logo-ua-bw-inv.svg') }}" alt="ІТ Коледж">
+    <p class="login__tagline">Розклад занять: заміни, заявки та зміни на завтра — в одному місці.</p>
+    <span class="login__bar" aria-hidden="true"></span>
+  </div>
+  <div class="login__col">
+    <div class="login__wrap">
+      <h1 class="login__title">Вхід</h1>
+      {% with messages = get_flashed_messages() %}
+        {% for m in messages %}<p class="flash flash--error" role="alert">{{ m }}</p>{% endfor %}
+      {% endwith %}
+      <form class="form" method="post">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <label class="field">
+          <span class="field__label">Email</span>
+          <input class="input" type="email" name="email" id="email" autocomplete="username" required autofocus>
+        </label>
+        <label class="field">
+          <span class="field__label">Пароль</span>
+          <input class="input" type="password" name="password" id="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn btn--primary" type="submit">Увійти</button>
+      </form>
+      <p class="muted">Студентам вхід не потрібен — <a href="{{ url_for('public.home') }}">розклад відкритий</a>.</p>
+    </div>
+  </div>
+</main>
+{% endblock %}

@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from .scheduler import InputError, Semester, SolverConfig, generate
+from .scheduler import InputError, Semester, SolverConfig, TeacherRule, generate
 from .scheduler.exporter import export_xlsx
 from .scheduler.metrics import quality
 from .scheduler.models import Schedule
@@ -82,7 +82,15 @@ class JobStore:
             shutil.rmtree(self.path(job_id))
 
     # --- запуск ---
-    def submit(self, input_file: Path, input_name: str, time_limit: float, semester: Semester) -> str:
+    def submit(
+        self,
+        input_file: Path,
+        input_name: str,
+        time_limit: float,
+        semester: Semester,
+        rules: list[dict] | None = None,
+        hint_entries: list[dict] | None = None,
+    ) -> str:
         job_id = uuid.uuid4().hex[:12]
         folder = self.path(job_id)
         folder.mkdir(parents=True)
@@ -94,19 +102,26 @@ class JobStore:
             input_name=input_name,
             time_limit=time_limit,
             semester=semester.to_dict(),
+            constraints=len(rules or []),
+            based_on_active=bool(hint_entries),
             status="queued",
             progress=None,
         )
-        self._executor.submit(self._run, job_id, time_limit, semester)
+        self._executor.submit(self._run, job_id, time_limit, semester, rules or [], hint_entries)
         return job_id
 
-    def _run(self, job_id: str, time_limit: float, semester: Semester):
+    def _run(self, job_id: str, time_limit: float, semester: Semester, rules: list[dict], hint_entries=None):
         folder = self.path(job_id)
         self._update(job_id, status="running", started=datetime.now().isoformat(timespec="seconds"))
         try:
             config = SolverConfig(time_limit=time_limit, workers=self.solver_workers)
             schedule = generate(
-                folder / "input.xlsx", config, lambda p: self._update(job_id, progress=p), semester=semester
+                folder / "input.xlsx",
+                config,
+                lambda p: self._update(job_id, progress=p),
+                semester=semester,
+                rules=[TeacherRule.from_dict(r) for r in rules],
+                hint_entries=hint_entries,
             )
             if schedule.placements:
                 export_xlsx(schedule, folder / "schedule.xlsx")

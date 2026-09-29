@@ -170,3 +170,40 @@ def test_impossible_teacher_load_is_explained(tmp_path):
 
     rules = {i.rule for i in precheck(data, n_days=5)}
     assert "Навантаження викладача" in rules
+
+
+def test_teacher_rules_are_respected():
+    from app.scheduler.models import TeacherRule
+
+    data = small_problem()
+    data.rules = [
+        TeacherRule(teachers=["Петров П. П."], kind="max_days", value=2),
+        TeacherRule(teachers=["Іванов І. І."], kind="unavailable", pairs=[1]),
+        TeacherRule(teachers=["Сидоренко С. С."], kind="room", room="3"),
+    ]
+    schedule = solve(data, FAST)
+    assert schedule.placements
+    assign_rooms(schedule)
+    for w in (0, 1):
+        days = {p.day for p in schedule.placements if p.week == w and "Петров П. П." in schedule.lesson(p.lesson_id).teachers}
+        assert len(days) <= 2
+    for p in schedule.placements:
+        lesson = schedule.lesson(p.lesson_id)
+        if "Іванов І. І." in lesson.teachers:
+            assert p.pair != 1
+        if lesson.teachers == ["Сидоренко С. С."]:
+            assert p.rooms == ["3"]
+    assert [i for i in validate(schedule) if i.severity == "error"] == []
+
+
+def test_first_pair_rule():
+    """Не більше одного дня на тиждень без першої пари зміни."""
+    schedule = solve(small_problem(), FAST)
+    for g in ("A-1/1", "B-1/1"):
+        for w in (0, 1):
+            late = 0
+            for d in range(5):
+                pairs = [p.pair for p in schedule.placements
+                         if p.week == w and p.day == d and schedule.lesson(p.lesson_id).group == g]
+                late += bool(pairs) and min(pairs) > 1
+            assert late <= 1

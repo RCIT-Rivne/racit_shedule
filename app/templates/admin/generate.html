@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Генерація{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Постійний розклад на семестр</p>
+    <h1 class="page__title">Генерація розкладу</h1>
+  </div>
+  <a class="btn btn--secondary btn--sm" href="{{ url_for('admin.timetables') }}">Опубліковані розклади</a>
+</div>
+
+<form class="card form" method="post" action="{{ url_for('gen.generate') }}" enctype="multipart/form-data">
+  {{ ui.csrf() }}
+  <label class="field">
+    <span class="field__label">Файл навантаження (.xlsx, аркуші «Навантаження» та «аудиторії»)</span>
+    <input class="input" type="file" name="file" accept=".xlsx">
+    {% if sample_available %}<span class="field__hint">Без файлу — приклад <a href="{{ url_for('gen.sample') }}">{{ sample_name }}</a>.</span>{% endif %}
+  </label>
+  <div class="form-grid">
+    <label class="field"><span class="field__label">Початок семестру</span><input class="input" type="date" name="semester_start" value="{{ semester.start.isoformat() }}"></label>
+    <label class="field"><span class="field__label">Кінець семестру</span><input class="input" type="date" name="semester_end" value="{{ semester.end.isoformat() }}"></label>
+    <label class="field"><span class="field__label">Перший тиждень</span>
+      <select class="select" name="first_week"><option value="0" selected>чисельник</option><option value="1">знаменник</option></select>
+    </label>
+    <label class="field"><span class="field__label">Час на пошук, секунд</span><input class="input" type="number" name="time_limit" value="{{ default_time }}" min="5" max="1800"></label>
+  </div>
+  <label class="btn-row"><input type="checkbox" name="saturdays" checked> Навчальні суботи (перша — за понеділком, наступна — за вівторком і т. д.)</label>
+  {% if active %}
+  <label class="btn-row"><input type="checkbox" name="based_on_active" checked> Спиратися на активний розклад «{{ active.name }}» — змінювати лише те, що потрібно для нових правил</label>
+  {% endif %}
+  <p class="muted">
+    {% if constraints %}Врахуються <a href="{{ url_for('admin.preferences') }}">вподобання викладачів</a>: {{ constraints }} правил.
+    {% else %}Вподобань викладачів немає — <a href="{{ url_for('admin.preferences') }}">додати</a>.{% endif %}
+    Групи: не більше одного дня на тиждень без першої пари.
+    Більше часу — якісніший розклад; 120 с зазвичай досить.
+  </p>
+  <div><button class="btn btn--primary">Згенерувати</button></div>
+</form>
+
+<section class="section">
+  <h2 class="section__title">Історія генерацій</h2>
+  {% if jobs %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Створено</th><th>Файл</th><th>Статус</th><th>Порушення</th><th></th></tr></thead>
+      <tbody>
+      {% for j in jobs %}
+      <tr>
+        <td>{{ j.created.replace('T', ' ') }}</td>
+        <td>{{ j.input_name }}</td>
+        <td><a href="{{ url_for('gen.job', job_id=j.id) }}">{{ {'queued': 'в черзі', 'running': 'генерується', 'done': 'готово', 'failed': 'помилка'}[j.status] }}</a></td>
+        <td>{% if j.issue_counts %}{{ j.issue_counts.error }} помилок, {{ j.issue_counts.warning }} попереджень{% endif %}</td>
+        <td>{% if j.status == 'done' %}<a href="{{ url_for('gen.download', job_id=j.id) }}">Excel</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="empty it-dots">Ще нічого не генерувалось.</div>{% endif %}
+</section>
+{% endblock %}

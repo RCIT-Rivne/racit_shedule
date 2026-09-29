@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Огляд{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Навчальна частина</p>
+    <h1 class="page__title">Огляд</h1>
+  </div>
+  <div class="btn-row">
+    <a class="btn btn--primary btn--sm" href="{{ url_for('admin.day') }}">Редактор дня</a>
+    <a class="btn btn--secondary btn--sm" href="{{ url_for('admin.absences') }}">Додати відсутність</a>
+  </div>
+</div>
+
+<div class="stats">
+  <a class="stat {{ 'stat--alert' if need }}" href="{{ url_for('admin.day', date=need[0].date.isoformat()) if need else url_for('admin.day') }}">
+    <span class="stat__value">{{ need|length }}</span>
+    <span class="stat__label">пар без викладача за {{ horizon }} днів — потрібна заміна</span>
+  </a>
+  <a class="stat {{ 'stat--alert' if pending }}" href="{{ url_for('admin.requests_list') }}">
+    <span class="stat__value">{{ pending }}</span>
+    <span class="stat__label">заявок на розгляді</span>
+  </a>
+  <a class="stat" href="{{ url_for('admin.absences') }}">
+    <span class="stat__value">{{ absences|length }}</span>
+    <span class="stat__label">актуальних відсутностей</span>
+  </a>
+  <a class="stat" href="{{ url_for('admin.timetables') }}">
+    <span class="stat__value">{{ entries }}</span>
+    <span class="stat__label">{{ ('пар у розкладі «' ~ tt.name ~ '»') if tt else 'розклад не опубліковано' }}</span>
+  </a>
+</div>
+
+{% if not tt %}
+  <div class="empty it-dots">
+    <p class="empty__title">Постійний розклад ще не опубліковано</p>
+    <p>Згенеруйте розклад і натисніть «Опублікувати» на сторінці результату.</p>
+    <p style="margin-top:16px"><a class="btn btn--primary" href="{{ url_for('gen.index') }}">До генерації</a></p>
+  </div>
+{% endif %}
+
+<div class="layout-2">
+  <section class="section">
+    <h2 class="section__title">Потребують рішення</h2>
+    {% if not need %}
+      <div class="empty">Усі пари відсутніх викладачів уже мають заміну або скасовані.</div>
+    {% else %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Дата</th><th>Пара</th><th>Група</th><th>Дисципліна</th><th>Відсутній</th><th></th></tr></thead>
+          <tbody>
+            {% for s in need %}
+            <tr>
+              <td>{{ weekday_names[s.date.weekday()][:2] }}, {{ s.date.strftime('%d.%m') }}</td>
+              <td class="num">{{ s.pair }}</td>
+              <td>{{ s.group }}</td>
+              <td>{{ s.subject }}</td>
+              <td>{{ s.missing|join(', ') }}</td>
+              <td><a class="btn btn--secondary btn--xs" href="{{ url_for('admin.slot', date=s.date.isoformat(), group=s.group, pair=s.pair) }}">Вирішити</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="section">
+    <h2 class="section__title">Найближчі зміни</h2>
+    {% if not upcoming_changes %}<div class="empty">Змін немає.</div>{% endif %}
+    <ul class="candidates">
+      {% for c in upcoming_changes %}
+      <li class="candidate">
+        <div>
+          <div class="candidate__name">{{ c.group }} · {{ c.pair }} пара</div>
+          <div class="candidate__why">{{ c.date.strftime('%d.%m') }} · {{ change_kinds[c.kind] }}{% if c.teachers %} · {{ c.teachers|join(', ') }}{% endif %}</div>
+        </div>
+        <a class="btn btn--ghost btn--xs" href="{{ url_for('admin.day', date=c.date.isoformat()) }}">День</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

@@ -56,6 +56,7 @@ def room_category(subject: str) -> str:
 
 
 # Вартість аудиторії за рівнем пріоритету.
+COST_PINNED = -10  # закріплена аудиторія викладача (правило room)
 COST_PREFERRED = 0
 COST_FALLBACK = 20
 COST_RESERVE = 60
@@ -123,7 +124,12 @@ def _home_room_greedy(items, busy_init=None) -> dict:
             for w in weeks:
                 busy.add((room.name, w, day, pair))
 
-    for teacher in sorted(by_teacher, key=lambda t: -len(by_teacher[t])):
+    # Спершу викладачі з закріпленою аудиторією (мінусова вартість), далі — найзавантаженіші.
+    def order(t):
+        fixed = any(c < 0 for k in by_teacher[t] for c, _ in items[k][4])
+        return (not fixed, -len(by_teacher[t]))
+
+    for teacher in sorted(by_teacher, key=order):
         pending = list(by_teacher[teacher])
         while pending:
             # Кандидат: (вартість, -скільки пар покриває) — найкращий рівень, найбільше покриття.
@@ -201,6 +207,13 @@ def assign_rooms(schedule: Schedule) -> None:
         positions[p.lesson_id, p.day, p.pair].append(p)
 
     # Кожна підгрупа (викладач) позиції — окремий елемент.
+    by_name = {r.name: r for r in data.rooms}
+    fixed_rooms: dict[str, tuple[list[Room], bool]] = {}
+    for rule in data.rules:
+        if rule.kind == "room" and rule.room in by_name:
+            for t in rule.teachers:
+                fixed_rooms[t] = ([by_name[rule.room]], rule.hard)
+
     items = {}
     for key, placements in positions.items():
         lid, day, pair = key
@@ -209,7 +222,12 @@ def assign_rooms(schedule: Schedule) -> None:
         weeks = [p.week for p in placements]
         for i in range(max(1, len(lesson.teachers))):
             teacher = lesson.teachers[i] if i < len(lesson.teachers) else f"—{lesson.group}"
-            items[key, i] = (teacher, weeks, day, pair, options)
+            opts = options
+            if teacher in fixed_rooms:
+                rooms, hard = fixed_rooms[teacher]
+                pinned = [(COST_PINNED, r) for r in rooms]
+                opts = pinned if hard else pinned + [(c, r) for c, r in options if r not in rooms]
+            items[key, i] = (teacher, weeks, day, pair, opts)
 
     result = _home_room_greedy(items)
     _repair(items, result)

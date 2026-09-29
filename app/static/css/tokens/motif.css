@@ -1,0 +1,47 @@
+/* ============================================================
+   IT Koledzh - Brand motif & base utilities
+   Ported verbatim from: rcit-web/docs/design-system/tokens/motif.css
+   Upstream (the college design system) is the source of truth.
+   Do not modify values here; sync from upstream instead.
+   ============================================================ */
+
+/* Dot-network background - subtle grid of violet dots */
+.it-dots {
+  background-image: radial-gradient(var(--brand-purple-200) 2px, transparent 2px);
+  background-size: 28px 28px;
+  background-position: 0 0;
+}
+.it-dots--dense {
+  background-size: 18px 18px;
+}
+.it-dots--on-violet {
+  background-image: radial-gradient(rgba(255,255,255,0.22) 2px, transparent 2px);
+}
+
+/* Signature title pill - gradient lozenge used as a page/section header */
+.it-title-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 18px 40px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-title);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: var(--weight-extrabold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+}
+
+/* Decorative horizontal fade bar */
+.it-fade-bar {
+  height: 86px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-primary);
+}
+
+/* Focus ring shared across interactive components */
+.it-focusable:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}

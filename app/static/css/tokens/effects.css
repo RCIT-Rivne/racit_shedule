@@ -1,0 +1,41 @@
+/* ============================================================
+   IT Koledzh - Radii, shadows, gradients & motion
+   Ported verbatim from: rcit-web/docs/design-system/tokens/effects.css
+   Upstream (the college design system) is the source of truth.
+   Do not modify values here; sync from upstream instead.
+   ============================================================ */
+
+:root {
+  /* ---- Corner radii ---- */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 45px;      /* large brand card (Figma p.01) */
+  --radius-pill: 999px;
+  --radius-mark: 22.9%;   /* IT monogram rounded-square */
+
+  /* ---- Shadows ---- */
+  --shadow-sm:   0 3px 3px rgba(0,0,0,0.05);
+  --shadow-md:   0 3px 5px rgba(0,0,0,0.2);
+  --shadow-soft: 0 4px 24px rgba(21,19,99,0.06);
+  --shadow-card: 15px 22px 41px 0 rgba(0,0,0,0.15);   /* signature brand shadow */
+  --shadow-violet: 0 18px 40px -12px rgba(96,12,235,0.45);
+
+  /* ---- Gradients ---- */
+  /* Horizontal violet fade - decorative bars & title band */
+  --gradient-primary: linear-gradient(269.9deg, #600CEB 0%, rgba(96,12,235,0.42) 43%, rgba(96,12,235,0) 96%);
+  /* Title pill - light lavender to solid violet (guideline page headers) */
+  --gradient-title: linear-gradient(90deg, #EBE1FF 0%, #7E38EF 45%, #600CEB 100%);
+  /* Logo stroke highlight (white to transparent) */
+  --gradient-stroke: linear-gradient(180deg, #FFFFFF -42.92%, rgba(255,255,255,0.78) 2.95%, rgba(255,255,255,0) 94.69%);
+  /* Deep brand surface */
+  --gradient-surface: linear-gradient(150deg, #7E38EF 0%, #600CEB 55%, #4809B0 100%);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 0.18s;
+  --dur-base: 0.26s;
+  --dur-slow: 0.4s;
+}

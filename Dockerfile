@@ -12,6 +12,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+# Вподобання викладачів і циклові комісії (імпортуються в БД командою import-rules)
+COPY config ./config
 # Приклад вхідних даних (використовується, якщо файл не завантажено)
 COPY ["info/Розклад на 2026 р (інформація).xlsx", "./info/"]
 

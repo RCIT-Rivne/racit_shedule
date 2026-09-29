@@ -2,18 +2,73 @@
 <html lang="uk">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   {% block head %}{% endblock %}
-  <title>{% block title %}Розклад{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <title>{% block title %}Розклад{% endblock %} · РФКІТ</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/logo-ua.svg') }}" type="image/svg+xml">
+  {% for css in ['tokens/colors', 'tokens/typography', 'tokens/spacing', 'tokens/effects', 'tokens/motif', 'fonts', 'app', 'base', 'components'] %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ css ~ '.css') }}">
+  {% endfor %}
 </head>
 <body>
-  <header><a href="{{ url_for('main.index') }}">Генератор розкладу</a></header>
-  <main>
-    {% with messages = get_flashed_messages() %}
-      {% for m in messages %}<p class="flash">{{ m }}</p>{% endfor %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
+{% block body %}
+{% block shell %}
+<header class="shell">
+  <div class="shell__bar">
+    <a class="shell__brand" href="{{ url_for('public.home') }}" aria-label="Розклад РФКІТ — на головну">
+      <img src="{{ url_for('static', filename='img/it-mark.svg') }}" alt="ІТ Коледж" width="132" height="32">
+      <span class="shell__product">Розклад</span>
+    </a>
+    {% set ep = request.endpoint or '' %}
+    <nav class="shell__nav" aria-label="Розділи">
+      <a class="shell__link {{ 'shell__link--active' if ep in ('public.home', 'public.group', 'public.teacher') }}" href="{{ url_for('public.home') }}">Розклад</a>
+      <a class="shell__link {{ 'shell__link--active' if ep == 'public.changes' }}" href="{{ url_for('public.changes') }}">Зміни</a>
+      {% if current_user and current_user.teacher_name %}
+        <a class="shell__link {{ 'shell__link--active' if ep.startswith('teacher.') }}" href="{{ url_for('teacher.home') }}">Мій кабінет</a>
+      {% endif %}
+      {% if current_user and current_user.is_admin %}
+        <a class="shell__link {{ 'shell__link--active' if ep == 'admin.dashboard' }}" href="{{ url_for('admin.dashboard') }}">Огляд</a>
+        <a class="shell__link {{ 'shell__link--active' if ep in ('admin.day', 'admin.slot') }}" href="{{ url_for('admin.day') }}">Редактор дня</a>
+        <a class="shell__link {{ 'shell__link--active' if ep == 'admin.requests_list' }}" href="{{ url_for('admin.requests_list') }}">Заявки{% if pending_requests %} <span class="shell__count">{{ pending_requests }}</span>{% endif %}</a>
+        <a class="shell__link {{ 'shell__link--active' if ep == 'admin.absences' }}" href="{{ url_for('admin.absences') }}">Відсутності</a>
+        {% set more_active = ep in ('admin.preferences', 'admin.constraints', 'admin.practice', 'admin.users', 'admin.timetables') or ep.startswith('gen.') %}
+        <details class="shell__more">
+          <summary class="shell__link {{ 'shell__link--active' if more_active }}">Ще</summary>
+          <div class="shell__menu">
+            <a class="shell__link {{ 'shell__link--active' if ep.startswith('gen.') }}" href="{{ url_for('gen.index') }}">Генерація розкладу</a>
+            <a class="shell__link {{ 'shell__link--active' if ep == 'admin.timetables' }}" href="{{ url_for('admin.timetables') }}">Постійні розклади</a>
+            <a class="shell__link {{ 'shell__link--active' if ep in ('admin.preferences', 'admin.constraints') }}" href="{{ url_for('admin.preferences') }}">Вподобання викладачів</a>
+            <a class="shell__link {{ 'shell__link--active' if ep == 'admin.practice' }}" href="{{ url_for('admin.practice') }}">Практика груп</a>
+            <a class="shell__link {{ 'shell__link--active' if ep == 'admin.users' }}" href="{{ url_for('admin.users') }}">Користувачі</a>
+          </div>
+        </details>
+      {% endif %}
+    </nav>
+    <div class="shell__account">
+      {% if current_user %}
+        <span class="shell__name">{{ current_user.full_name }}</span>
+        <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn btn--ghost btn--sm">Вийти</button>
+        </form>
+      {% else %}
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('auth.login') }}">Вхід для викладачів</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+{% endblock %}
+<main class="page {% block page_class %}{% endblock %}">
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<p class="flash" role="status">{{ m }}</p>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+{% block footer %}<footer class="footer">Рівненський фаховий коледж інформаційних технологій · розклад занять</footer>{% endblock %}
+{% endblock %}
+<script>
+  // Закривати меню «Ще» кліком поза ним.
+  document.addEventListener('click', e => document.querySelectorAll('.shell__more[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
+</script>
 </body>
 </html>

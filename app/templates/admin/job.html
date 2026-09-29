@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "macros.html" as ui with context %}
 {% block head %}{% if job.status in ('queued', 'running') %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block title %}Розклад — {{ job.input_name }}{% endblock %}
 
@@ -6,12 +7,13 @@
   {% if p %}
     <div class="subj">{{ p.subject }}</div>
     <div class="meta">{% if show == 'group' %}{{ p.group }}{% else %}{{ p.teachers|join(', ') }}{% endif %}{% if p.rooms %} · ауд. {{ p.rooms|join(', ') }}{% endif %}</div>
-  {% else %}<span class="empty">—</span>{% endif %}
+  {% else %}<span class="empty-cell">—</span>{% endif %}
 {% endmacro %}
 
 {% block content %}
-<h1>{{ job.input_name }}</h1>
-<p class="hint">Створено {{ job.created.replace('T', ' ') }}, ліміт часу {{ job.time_limit|int }} с, семестр {{ semester.start.strftime('%d.%m.%Y') }}–{{ semester.end.strftime('%d.%m.%Y') }}</p>
+<a href="{{ url_for('gen.index') }}">← До генерації</a>
+<div class="page__head"><div><p class="eyebrow">Результат генерації</p><h1 class="page__title">{{ job.input_name }}</h1>
+<p class="muted">Створено {{ job.created.replace('T', ' ') }}, ліміт часу {{ job.time_limit|int }} с, семестр {{ semester.start.strftime('%d.%m.%Y') }}–{{ semester.end.strftime('%d.%m.%Y') }}{% if job.constraints %}, правил вподобань: {{ job.constraints }}{% endif %}{% if job.based_on_active %}, на основі активного розкладу{% endif %}</p></div></div>
 
 {% if job.status == 'queued' %}
   <p class="card">У черзі…</p>
@@ -26,77 +28,86 @@
     {% endif %}
   </div>
 {% elif job.status == 'failed' %}
-  <p class="card error">Помилка: {{ job.error }}</p>
+  <p class="flash flash--error">Помилка: {{ job.error }}</p>
 {% endif %}
 
 {% if result %}
-<div class="card">
+<div class="card form">
   <p>Статус: <b>{{ job.solver_status }}</b> · штраф {{ job.objective|int }} · {{ job.solve_seconds }} с ·
      помилок: <b>{{ job.issue_counts.error }}</b>, попереджень: <b>{{ job.issue_counts.warning }}</b></p>
-  <a class="button" href="{{ url_for('main.download', job_id=job.id) }}">Завантажити Excel</a>
-  <a href="{{ url_for('main.download_input', job_id=job.id) }}">вхідний файл</a>
-  <form method="post" action="{{ url_for('main.delete', job_id=job.id) }}" class="inline">
-    <button class="link">видалити</button>
-  </form>
+  <div class="btn-row">
+    <form method="post" action="{{ url_for('gen.publish', job_id=job.id) }}" class="btn-row">
+      {{ ui.csrf() }}
+      <label class="visually-hidden" for="tt-name">Назва розкладу</label>
+      <input class="input" id="tt-name" name="name" value="Розклад {{ semester.start.strftime('%d.%m') }}–{{ semester.end.strftime('%d.%m.%Y') }}" style="width:auto">
+      <button class="btn btn--primary">Опублікувати як постійний розклад</button>
+    </form>
+    <a class="btn btn--secondary" href="{{ url_for('gen.download', job_id=job.id) }}">Завантажити Excel</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('gen.download_input', job_id=job.id) }}">Вхідний файл</a>
+    <form method="post" action="{{ url_for('gen.delete', job_id=job.id) }}" class="inline">
+      {{ ui.csrf() }}<button class="btn btn--danger btn--sm">Видалити</button>
+    </form>
+  </div>
+  <p class="muted">Після публікації розклад одразу бачать студенти й викладачі; попередній постійний розклад стає неактивним.</p>
 </div>
 
 <details class="card">
   <summary>Якість розкладу</summary>
-  <table class="list">
+  <div class="table-wrap"><table class="table">
     {% for k, v in (result.quality or {}).items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
-  </table>
+  </table></div>
   {% if result.penalty_breakdown %}
-  <p class="hint">Зі чого складається штраф {{ job.objective|int }}:</p>
-  <table class="list">
+  <p class="muted">З чого складається штраф {{ job.objective|int }}:</p>
+  <div class="table-wrap"><table class="table">
     {% for k, v in result.penalty_breakdown.items() %}<tr><td>{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
-  </table>
+  </table></div>
   {% endif %}
 </details>
 
 {% if result.issues %}
 <details class="card" {% if job.issue_counts.error %}open{% endif %}>
   <summary>Перевірка правил ({{ result.issues|length }})</summary>
-  <table class="list">
+  <div class="table-wrap"><table class="table">
     {% for i in result.issues %}
     <tr class="{{ i.severity }}"><td>{{ i.rule }}</td><td>{{ i.message }}</td></tr>
     {% endfor %}
-  </table>
+  </table></div>
 </details>
 {% endif %}
 
-<form method="get" class="card">
+<form method="get" class="card btn-row">
   <label class="inline-label">Розклад на дату
-    <input type="date" name="date" value="{{ on_date.isoformat() if on_date else '' }}"
+    <input class="input" style="width:auto" type="date" name="date" value="{{ on_date.isoformat() if on_date else '' }}"
            min="{{ semester.start.isoformat() }}" max="{{ semester.end.isoformat() }}">
   </label>
   <input type="hidden" name="course" value="{{ selected if view == 'groups' else '' }}">
-  <button type="submit">Показати</button>
+  <button class="btn btn--secondary btn--sm" type="submit">Показати</button>
   {% if on_date %}
     <b>{{ on_date_text }}</b>
-    {% if resolved %}<a href="{{ url_for('main.download_day', job_id=job.id, date=on_date.isoformat()) }}">Excel на цю дату</a>{% endif %}
-    <a href="{{ url_for('main.job', job_id=job.id, course=selected if view == 'groups' else None) }}">увесь тиждень</a>
+    {% if resolved %}<a href="{{ url_for('gen.download_day', job_id=job.id, date=on_date.isoformat()) }}">Excel на цю дату</a>{% endif %}
+    <a href="{{ url_for('gen.job', job_id=job.id, course=selected if view == 'groups' else None) }}">увесь тиждень</a>
   {% endif %}
 </form>
 
 {% if saturdays %}
 <details class="card">
   <summary>Навчальні суботи ({{ saturdays|length }})</summary>
-  <table class="list">
+  <div class="table-wrap"><table class="table">
     {% for s in saturdays %}
     <tr><td>{{ s.date[8:10] }}.{{ s.date[5:7] }}.{{ s.date[:4] }}</td><td>{{ days_labels[s.day] }}</td><td>{{ weeks[s.week]|lower }}</td></tr>
     {% endfor %}
-  </table>
+  </table></div>
 </details>
 {% endif %}
 
 <nav class="tabs">
   {% for c in courses %}
-    <a href="{{ url_for('main.job', job_id=job.id, course=c, date=on_date.isoformat() if on_date else None) }}" class="{% if view == 'groups' and selected == c %}active{% endif %}">{{ c }} курс</a>
+    <a href="{{ url_for('gen.job', job_id=job.id, course=c, date=on_date.isoformat() if on_date else None) }}" class="tab {% if view == 'groups' and selected == c %}is-active{% endif %}">{{ c }} курс</a>
   {% endfor %}
   <form method="get" class="inline">
     <input type="hidden" name="view" value="teachers">
     {% if on_date %}<input type="hidden" name="date" value="{{ on_date.isoformat() }}">{% endif %}
-    <select name="teacher" onchange="this.form.submit()">
+    <select class="select" style="width:auto" name="teacher" onchange="this.form.submit()">
       <option value="">Викладач…</option>
       {% for t in result.teachers %}<option {% if view == 'teachers' and selected == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
     </select>
@@ -109,12 +120,12 @@
 {% else %}
 {% if on_date %}
   {% set day_indexes = [resolved[0]] %}
-  <p class="hint">Показано {{ weeks[resolved[1]]|lower }}.</p>
+  <p class="muted">Показано {{ weeks[resolved[1]]|lower }}.</p>
 {% else %}
   {% set day_indexes = range(days|length) %}
-  <p class="hint">У клітинці: зверху — чисельник, знизу — знаменник (якщо відрізняються).</p>
+  <p class="muted">У клітинці: зверху — чисельник, знизу — знаменник (якщо відрізняються).</p>
 {% endif %}
-<div class="scroll">
+<div class="table-wrap">
 <table class="timetable">
   <tr><th>День</th><th>Пара</th>{% for n in names %}<th>{{ n }}</th>{% endfor %}</tr>
   {% for d in day_indexes %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Користувачі{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Доступ</p>
+    <h1 class="page__title">Користувачі</h1>
+    <p class="page__lede">Викладачам потрібен акаунт, щоб подавати заявки; студентам вхід не потрібен. Вхід через Google-акаунт коледжу додамо, щойно буде OAuth-клієнт.</p>
+  </div>
+</div>
+<div class="card">
+  <form class="form" method="post">
+    {{ ui.csrf() }}
+    <div class="form-grid">
+      <label class="field"><span class="field__label">Email</span><input class="input" type="email" name="email" required placeholder="name@rcit.ukr.education"></label>
+      <label class="field"><span class="field__label">Пароль</span><input class="input" type="password" name="password" minlength="8" required autocomplete="new-password"></label>
+      <label class="field"><span class="field__label">Роль</span>
+        <select class="select" name="role"><option value="teacher">Викладач</option><option value="admin">Навчальна частина</option></select>
+      </label>
+      <label class="field"><span class="field__label">Викладач у розкладі</span>
+        <select class="select" name="teacher_name"><option value="">—</option>{% for t in teachers %}<option>{{ t }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <button class="btn btn--primary">Створити</button>
+  </form>
+</div>
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Ім'я</th><th>Email</th><th>Роль</th><th>У розкладі</th><th></th></tr></thead>
+    <tbody>
+      {% for u in rows %}
+      <tr>
+        <td>{{ u.full_name }}</td>
+        <td>{{ u.email }}</td>
+        <td><span class="badge {{ 'badge--purple' if u.is_admin else 'badge--neutral' }}">{{ 'Навчальна частина' if u.is_admin else 'Викладач' }}</span></td>
+        <td>{{ u.teacher_name or '—' }}</td>
+        <td>{% if u.id != current_user.id %}<form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}">{{ ui.csrf() }}<button class="btn btn--ghost btn--xs">Видалити</button></form>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Зміни{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Зміни до розкладу</p>
+    <h1 class="page__title">{{ info.weekday }}, {{ info.human }}</h1>
+  </div>
+</div>
+<nav class="daynav" aria-label="Дата">
+  <a class="btn btn--ghost btn--sm" href="{{ prev_url }}" aria-label="Попередній день">←<span class="daynav__label"> Попередній день</span></a>
+  <div class="daynav__date">
+    <span class="daynav__sub">{% if info.off %}{{ info.reason }}{% else %}{{ info.week }}{% if info.saturday_as %} · за розкладом: {{ info.saturday_as|lower }}{% endif %}{% endif %}</span>
+  </div>
+  <a class="btn btn--ghost btn--sm" href="{{ next_url }}" aria-label="Наступний день"><span class="daynav__label">Наступний день </span>→</a>
+</nav>
+{% if not slots %}
+  <div class="empty it-dots"><p class="empty__title">Змін немає</p><p>Усі пари — за постійним розкладом.</p></div>
+{% else %}
+  {% for group, items in slots|groupby('group') %}
+    <section class="section">
+      <h2 class="section__title"><a href="{{ url_for('public.group', name=group, date=info.date.isoformat()) }}">{{ group }}</a></h2>
+      <ol class="lessons">{% for s in items %}{{ ui.lesson_card(s) }}{% endfor %}</ol>
+    </section>
+  {% endfor %}
+{% endif %}
+{% endblock %}

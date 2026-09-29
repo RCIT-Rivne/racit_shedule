@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Розклад занять{% endblock %}
+{% block content %}
+<section class="hero card--violet it-dots it-dots--on-violet">
+  <h1 class="hero__title">Розклад занять коледжу</h1>
+  <p class="hero__text">Оберіть групу або викладача — побачите пари на сьогодні й на тиждень разом із замінами.</p>
+  <form class="hero__actions" action="{{ url_for('public.home') }}" onsubmit="return openPick(event)">
+    <label class="visually-hidden" for="pick">Група або викладач</label>
+    <input class="input" id="pick" list="pick-list" placeholder="Наприклад, ІПЗ-2/1 або Бойко" autocomplete="off">
+    <datalist id="pick-list">
+      {% for c, names in courses.items() %}{% for n in names %}<option value="{{ n }}">{% endfor %}{% endfor %}
+      {% for t in teachers %}<option value="{{ t }}">{% endfor %}
+    </datalist>
+    <button class="btn btn--accent">Показати</button>
+    {% if last %}
+      {% set kind, name = last.split(':', 1) %}
+      <a class="btn btn--secondary" href="{{ url_for('public.group' if kind == 'group' else 'public.teacher', name=name) }}">Мій розклад: {{ name }}</a>
+    {% endif %}
+  </form>
+</section>
+
+<section class="section">
+  <div class="page__head">
+    <h2 class="section__title">Групи</h2>
+    <a href="{{ url_for('public.changes') }}">Усі зміни на {{ human_date(today) }}</a>
+  </div>
+  <div class="card">
+    <div class="form">
+      {% for course, names in courses.items() %}
+      <div class="course-row">
+        <span class="course-row__label">{{ course }} курс</span>
+        <div class="chips">
+          {% for n in names %}<a class="chip" href="{{ url_for('public.group', name=n) }}">{{ n }}</a>{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h2 class="section__title">Викладачі</h2>
+  <div class="card">
+    <div class="teacher-list">
+      {% for t in teachers %}<a href="{{ url_for('public.teacher', name=t) }}">{{ t }}</a>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<script>
+  const groups = new Set({{ courses.values()|sum(start=[])|tojson }});
+  const teachers = new Set({{ teachers|tojson }});
+  function openPick(event) {
+    event.preventDefault();
+    const value = document.getElementById('pick').value.trim();
+    if (!value) return false;
+    const base = groups.has(value) ? "{{ url_for('public.group', name='__') }}" : "{{ url_for('public.teacher', name='__') }}";
+    if (!groups.has(value) && !teachers.has(value)) {
+      const match = [...groups, ...teachers].find(n => n.toLowerCase().includes(value.toLowerCase()));
+      if (!match) { document.getElementById('pick').setCustomValidity('Не знайдено'); document.getElementById('pick').reportValidity(); return false; }
+      return go(groups.has(match) ? "{{ url_for('public.group', name='__') }}" : "{{ url_for('public.teacher', name='__') }}", match);
+    }
+    return go(base, value);
+  }
+  function go(base, name) { location.href = base.replace('__', encodeURIComponent(name).replace(/%2F/g, '/')); return false; }
+  document.getElementById('pick').addEventListener('input', e => e.target.setCustomValidity(''));
+</script>
+{% endblock %}

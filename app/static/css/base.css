@@ -1,0 +1,118 @@
+/* ============================================================
+   Base reset & global element styles
+   ============================================================
+   Establishes sensible defaults so the app is no longer browser-
+   default Times New Roman with no layout. Keeps the two utilities
+   (.visually-hidden, :focus-visible ring) that existing views rely
+   on, re-expressed to use the design system's --focus-ring token.
+   ============================================================ */
+
+/* ---- Minimal reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body,
+h1, h2, h3, h4, h5, h6,
+p, figure, blockquote, dl, dd {
+  margin: 0;
+}
+
+ul, ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* ---- Base typography ---- */
+html {
+  /* Prevent font-size inflation on mobile orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--app-text-base);
+  line-height: var(--app-leading-base);
+  color: var(--text-body);
+  background-color: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--text-heading);
+  line-height: var(--leading-snug);
+}
+
+h1 { font-size: var(--app-text-2xl); font-weight: var(--weight-bold); }
+h2 { font-size: var(--app-text-xl);  font-weight: var(--weight-bold); }
+h3 { font-size: var(--app-text-lg);  font-weight: var(--weight-semibold); }
+h4 { font-size: var(--app-text-md);  font-weight: var(--weight-semibold); }
+
+/* ---- Links ---- */
+a {
+  color: var(--text-link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+a:hover {
+  color: var(--color-primary-hover);
+}
+
+/* ---- Form controls inherit font ---- */
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ---- Accessible hidden ----
+   Screen-reader-only content. MyAssignmentsView uses this class
+   for grid cell labels since stage 1. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Focus ring ----
+   Visible on everything reachable via keyboard. Teachers use the
+   keyboard as their primary input, so losing the focus ring is
+   losing your place in the journal. Uses the DS --focus-ring token
+   (brand violet) and the .it-focusable convention from motif.css. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- Reduced motion ----
+   Respect a user who asked the system for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

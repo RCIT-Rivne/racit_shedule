@@ -1,0 +1,73 @@
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro status_badge(slot) %}
+  {% if slot.status == 'substitute' %}<span class="badge badge--blue">Заміна</span>
+  {% elif slot.status == 'cancelled' %}<span class="badge badge--orange">Скасовано</span>
+  {% elif slot.status == 'added' %}<span class="badge badge--purple">{{ 'Перенесено' if slot.change and slot.change.move_id else 'Додаткова' }}</span>
+  {% elif slot.status == 'room' %}<span class="badge badge--yellow">Інша аудиторія</span>
+  {% elif slot.status == 'practice' %}<span class="badge badge--yellow">Практика</span>
+  {% endif %}
+{% endmacro %}
+
+{# Картка пари. mode: 'group' — показувати викладачів; 'teacher' — показувати групу. #}
+{% macro lesson_card(slot, mode='group', me=None) %}
+  {% set start, end = bells[slot.pair] %}
+  {% set replaced_me = me and slot.original and me in slot.original.teachers and me not in slot.teachers %}
+  <li class="lesson lesson--{{ 'cancelled' if replaced_me else slot.status }}">
+    <div class="lesson__time">
+      <span class="lesson__start">{{ start }}</span>
+      <span class="lesson__end">до {{ end }}</span>
+      <span class="lesson__pair">{{ slot.pair }} пара</span>
+    </div>
+    <div class="lesson__main">
+      <span class="lesson__subject">{{ slot.subject }}</span>
+      <div class="lesson__meta">
+        {% if mode == 'teacher' %}<span>{{ slot.group }}</span>{% endif %}
+        {% if mode == 'teacher' and me in slot.teachers and slot.teachers|length > 1 %}
+          {% set idx = slot.teachers.index(me) %}
+          <span>підгрупа, паралельно: {{ slot.teachers|reject('equalto', me)|join(', ') }}</span>
+          {% if slot.rooms|length > idx %}<span>ауд. {{ slot.rooms[idx] }}</span>{% endif %}
+        {% else %}
+          {% if mode == 'group' or slot.teachers|length > 1 %}<span>{{ slot.teachers|join(', ') }}</span>{% endif %}
+          {% if slot.rooms %}<span>ауд. {{ slot.rooms|join(', ') }}</span>{% endif %}
+        {% endif %}
+      </div>
+      {% if replaced_me %}
+        <span class="lesson__was">Вас замінює: {{ slot.teachers|join(', ') }}</span>
+      {% elif slot.status == 'substitute' and slot.original %}
+        <span class="lesson__was">За розкладом: <s>{{ slot.original.teachers|join(', ') }}{% if slot.original.subject != slot.subject %}, {{ slot.original.subject }}{% endif %}</s></span>
+      {% elif slot.status == 'room' and slot.original %}
+        <span class="lesson__was">За розкладом: <s>ауд. {{ slot.original.rooms|join(', ') }}</s></span>
+      {% endif %}
+      {% if slot.change and slot.change.reason and slot.status != 'regular' %}<span class="lesson__was">{{ slot.change.reason }}</span>{% endif %}
+    </div>
+    <div class="lesson__side">
+      {% if replaced_me %}<span class="badge badge--blue">Вас замінено</span>{% else %}{{ status_badge(slot) }}{% endif %}
+      {% if slot.missing and me %}<span class="badge badge--orange">Відсутній: {{ slot.missing|join(', ') }}</span>{% endif %}
+    </div>
+  </li>
+{% endmacro %}
+
+{% macro mini(slot, mode='group', me=None) %}
+  {% set start, end = bells[slot.pair] %}
+  {% set replaced_me = me and slot.original and me in slot.original.teachers and me not in slot.teachers %}
+  <div class="mini mini--{{ 'cancelled' if replaced_me else slot.status }}">
+    <div class="mini__top"><span><b>{{ slot.pair }}</b> · {{ start }}–{{ end }}</span>{{ status_badge(slot) }}</div>
+    <div class="mini__subject">{{ slot.subject }}</div>
+    <div class="mini__meta">
+      {% if mode == 'teacher' %}{{ slot.group }}{% else %}{{ slot.teachers|join(', ') }}{% endif %}{% if slot.rooms %} · ауд. {{ slot.rooms|join(', ') }}{% endif %}
+    </div>
+  </div>
+{% endmacro %}
+
+{% macro pair_checks(name, selected=None, pairs=range(1, 8)) %}
+  <div class="checks" role="group" aria-label="Пари">
+    {% for p in pairs %}
+      <label class="check-chip"><input type="checkbox" name="{{ name }}" value="{{ p }}" {{ 'checked' if selected and p in selected }}><span>{{ p }}</span></label>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro pairs_text(pairs) %}{% if pairs %}пари {{ pairs|join(', ') }}{% else %}увесь день{% endif %}{% endmacro %}
+
+{% macro dates_text(a, b) %}{% if a == b %}{{ a.strftime('%d.%m.%Y') }}{% else %}{{ a.strftime('%d.%m') }}–{{ b.strftime('%d.%m.%Y') }}{% endif %}{% endmacro %}

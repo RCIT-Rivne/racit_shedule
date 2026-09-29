@@ -1,3 +1,4 @@
+"""Генерація розкладу (адмін): запуск, перегляд результату, експорт, публікація."""
 from __future__ import annotations
 
 import tempfile
@@ -18,12 +19,16 @@ from flask import (
     url_for,
 )
 
+from .auth import admin_required
+from .db import active_timetable
 from .jobs import JobStore
+from .timetable import publish as publish_timetable
+from .views_admin import solver_rules
 from .scheduler.exporter import build_day_workbook, day_title
 from .scheduler.models import DAYS, TOTAL_PAIRS, WEEKS
 from .scheduler.semester import Semester
 
-bp = Blueprint("main", __name__)
+bp = Blueprint("gen", __name__, url_prefix="/admin")
 
 
 def jobs() -> JobStore:
@@ -40,16 +45,19 @@ def _job_or_404(job_id: str) -> dict:
     return job
 
 
-@bp.get("/")
+@bp.get("/generate")
+@admin_required
 def index():
     sample = current_app.config["SAMPLE_INPUT"]
     return render_template(
-        "index.html",
+        "admin/generate.html",
         jobs=jobs().list(),
         sample_available=sample.exists(),
         sample_name=sample.name,
         default_time=int(current_app.config["DEFAULT_TIME_LIMIT"]),
         semester=Semester.default(),
+        constraints=len(solver_rules()),
+        active=active_timetable(),
     )
 
 
@@ -70,29 +78,41 @@ def _semester_from_form() -> Semester | None:
     return Semester(start, end, first_week, saturdays=request.form.get("saturdays") == "on")
 
 
+def _hint() -> list[dict] | None:
+    """Активний розклад як стартова точка — нова генерація змінює лише необхідне."""
+    if request.form.get("based_on_active") != "on":
+        return None
+    tt = active_timetable()
+    if tt is None:
+        return None
+    return [{"group": e.group, "subject": e.subject, "teachers": list(e.teachers), "week": e.week,
+             "day": e.day, "pair": e.pair} for e in tt.entries]
+
+
 @bp.post("/generate")
+@admin_required
 def generate():
     time_limit = min(max(request.form.get("time_limit", type=float) or 60, 5), 1800)
     semester = _semester_from_form()
     if semester is None:
         flash("Кінець семестру раніше за початок")
-        return redirect(url_for("main.index"))
+        return redirect(url_for("gen.index"))
     upload = request.files.get("file")
     if upload and upload.filename:
         if not upload.filename.lower().endswith(".xlsx"):
             flash("Потрібен файл .xlsx")
-            return redirect(url_for("main.index"))
+            return redirect(url_for("gen.index"))
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "input.xlsx"
             upload.save(path)
-            job_id = jobs().submit(path, upload.filename, time_limit, semester)
+            job_id = jobs().submit(path, upload.filename, time_limit, semester, solver_rules(), _hint())
     else:
         sample = current_app.config["SAMPLE_INPUT"]
         if not sample.exists():
             flash("Завантажте файл з навантаженням")
-            return redirect(url_for("main.index"))
-        job_id = jobs().submit(sample, sample.name, time_limit, semester)
-    return redirect(url_for("main.job", job_id=job_id))
+            return redirect(url_for("gen.index"))
+        job_id = jobs().submit(sample, sample.name, time_limit, semester, solver_rules(), _hint())
+    return redirect(url_for("gen.job", job_id=job_id))
 
 
 def _grid(result: dict, names: list[str], key: str):
@@ -111,6 +131,7 @@ def _grid(result: dict, names: list[str], key: str):
 
 
 @bp.get("/jobs/<job_id>")
+@admin_required
 def job(job_id: str):
     job = _job_or_404(job_id)
     result = jobs().result(job_id) if job["status"] == "done" else None
@@ -139,10 +160,11 @@ def job(job_id: str):
             names=names,
             grid=_grid(result, names, view[:-1]),
         )
-    return render_template("job.html", **ctx)
+    return render_template("admin/job.html", **ctx)
 
 
 @bp.get("/jobs/<job_id>/schedule.xlsx")
+@admin_required
 def download(job_id: str):
     job = _job_or_404(job_id)
     path = jobs().path(job_id) / "schedule.xlsx"
@@ -153,6 +175,7 @@ def download(job_id: str):
 
 
 @bp.get("/jobs/<job_id>/day.xlsx")
+@admin_required
 def download_day(job_id: str):
     _job_or_404(job_id)
     on_date = _parse_date(request.args.get("date"))
@@ -166,21 +189,38 @@ def download_day(job_id: str):
 
 
 @bp.get("/jobs/<job_id>/input.xlsx")
+@admin_required
 def download_input(job_id: str):
     job = _job_or_404(job_id)
     return send_file((jobs().path(job_id) / "input.xlsx").resolve(), as_attachment=True, download_name=job["input_name"])
 
 
 @bp.post("/jobs/<job_id>/delete")
+@admin_required
 def delete(job_id: str):
     _job_or_404(job_id)
     jobs().delete(job_id)
-    return redirect(url_for("main.index"))
+    return redirect(url_for("gen.index"))
 
 
 @bp.get("/sample.xlsx")
+@admin_required
 def sample():
     path = current_app.config["SAMPLE_INPUT"]
     if not path.exists():
         abort(404)
     return send_file(path.resolve(), as_attachment=True, download_name=path.name)
+
+
+@bp.post("/jobs/<job_id>/publish")
+@admin_required
+def publish(job_id: str):
+    job = _job_or_404(job_id)
+    schedule = jobs().schedule(job_id)
+    if schedule is None:
+        flash("Результат генерації недоступний")
+        return redirect(url_for("gen.job", job_id=job_id))
+    name = request.form.get("name") or f"Розклад від {job['created'][:10]}"
+    tt = publish_timetable(schedule, name, job_id)
+    flash(f"«{tt.name}» опубліковано як постійний розклад — студенти й викладачі вже бачать його")
+    return redirect(url_for("admin.dashboard"))

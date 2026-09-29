@@ -1,0 +1,91 @@
+/* ============================================================
+   IT Koledzh - Color tokens
+   Ported verbatim from: rcit-web/docs/design-system/tokens/colors.css
+   Upstream (the college design system) is the source of truth.
+   Do not modify values here; sync from upstream instead.
+   ============================================================ */
+
+:root {
+  /* ---- Brand: Violet (primary) ---- */
+  --brand-purple: #600CEB;
+  --brand-purple-700: #4809B0;   /* hover / pressed */
+  --brand-purple-600: #550AC9;
+  --brand-purple-500: #600CEB;
+  --brand-purple-400: #7E38EF;
+  --brand-purple-300: #9D66F3;
+  --brand-purple-200: #C4A3F8;
+  --brand-purple-100: #E2D0FC;
+  --brand-purple-50:  #F2EBFE;
+  --brand-purple-61a: rgba(96, 12, 235, 0.61);
+  --brand-purple-42a: rgba(96, 12, 235, 0.42);
+
+  /* ---- Brand: Yellow ---- */
+  --brand-yellow: #F9DB74;
+  --brand-yellow-300: #FBE79A;
+  --brand-yellow-200: #FCEFBC;
+  --brand-yellow-100: #FDF6DC;
+  --brand-yellow-50:  #FEFAEE;
+
+  /* ---- Brand: Sky ---- */
+  --brand-blue: #5FBDF7;
+  --brand-blue-300: #8BD0F9;
+  --brand-blue-200: #B4E1FB;
+  --brand-blue-100: #DAF0FD;
+  --brand-blue-50:  #EEF8FE;
+
+  /* ---- Brand: Coral / Orange (accent) ---- */
+  --brand-orange: #E36756;
+  --brand-orange-300: #EB9186;
+  --brand-orange-200: #F2B8B1;
+  --brand-orange-100: #F8DCD8;
+  --brand-orange-50:  #FCEEEC;
+
+  /* ---- Neutrals ---- */
+  --neutral-0:   #FFFFFF;
+  --neutral-50:  #F7F7F8;
+  --neutral-100: #F5F5F5;
+  --neutral-200: #E4E4E4;   /* hairline border */
+  --neutral-300: #D9D9D9;
+  --neutral-400: #B1B1B1;
+  --neutral-500: #898989;   /* muted text */
+  --neutral-600: #606060;
+  --neutral-700: #4B4B4B;
+  --neutral-900: #1D1D1B;
+  --neutral-950: #000000;
+  --ink:         #211F54;   /* deep-navy heading ink */
+  --stroke-cool: #A0A3BD;   /* cool grey construction stroke */
+
+  /* ---- White alpha ramp (for use on violet surfaces) ---- */
+  --white-92: rgba(255,255,255,0.92);
+  --white-78: rgba(255,255,255,0.78);
+  --white-68: rgba(255,255,255,0.68);
+  --white-56: rgba(255,255,255,0.56);
+  --white-42: rgba(255,255,255,0.42);
+  --white-30: rgba(255,255,255,0.30);
+
+  /* ================= Semantic aliases ================= */
+  --color-primary:        var(--brand-purple);
+  --color-primary-hover:  var(--brand-purple-700);
+  --color-primary-soft:   var(--brand-purple-50);
+  --color-accent:         var(--brand-orange);
+  --color-info:           var(--brand-blue);
+  --color-highlight:      var(--brand-yellow);
+
+  --text-strong:   var(--neutral-950);
+  --text-body:     #000000;
+  --text-heading:  var(--ink);
+  --text-muted:    var(--neutral-500);
+  --text-on-primary: #FFFFFF;
+  --text-link:     var(--brand-purple);
+
+  --surface-page:     #FFFFFF;
+  --surface-card:     #FFFFFF;
+  --surface-subtle:   var(--neutral-100);
+  --surface-primary:  var(--brand-purple);
+  --surface-inverse:  var(--neutral-950);
+
+  --border-subtle:  var(--neutral-200);
+  --border-strong:  var(--neutral-300);
+  --border-cool:    var(--stroke-cool);
+  --focus-ring:     var(--brand-purple);
+}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Обмеження викладачів{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Для генератора</p>
+    <h1 class="page__title">Постійні обмеження викладачів</h1>
+    <p class="page__lede">«У п'ятницю не може», «по вівторках лише до 3 пари». Генератор ніколи не поставить пару в ці години. У вже опублікованому розкладі такі пари треба закривати заміною або перегенерувати розклад.</p>
+  </div>
+</div>
+
+<div class="card">
+  <form class="form" method="post">
+    {{ ui.csrf() }}
+    <div class="form-grid">
+      <label class="field"><span class="field__label">Викладач</span>
+        <select class="select" name="teacher" required><option value="">—</option>{% for t in teachers %}<option>{{ t }}</option>{% endfor %}</select>
+      </label>
+      <label class="field"><span class="field__label">День тижня</span>
+        <select class="select" name="weekday">{% for d in weekdays %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}</select>
+      </label>
+      <label class="field"><span class="field__label">Примітка</span><input class="input" name="note"></label>
+    </div>
+    <div class="field"><span class="field__label">Пари</span>{{ ui.pair_checks('pairs', pairs=pairs) }}<span class="field__hint">Нічого не вибрано — увесь день</span></div>
+    <button class="btn btn--primary">Додати обмеження</button>
+  </form>
+</div>
+
+{% if rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Викладач</th><th>Коли не може</th><th>Примітка</th><th>У поточному розкладі</th><th></th></tr></thead>
+    <tbody>
+      {% for c in rows %}
+      <tr>
+        <td><strong>{{ c.teacher }}</strong>{% if c.request_id %} <span class="badge badge--neutral">із заявки</span>{% endif %}</td>
+        <td>{{ weekdays[c.weekday] }}, {{ ui.pairs_text(c.pairs) }}</td>
+        <td>{{ c.note or '' }}</td>
+        <td>{% if clashes.get(c.id) %}<span class="badge badge--orange">{{ clashes[c.id] }} пар суперечать</span>{% else %}<span class="badge badge--blue">узгоджено</span>{% endif %}</td>
+        <td><form method="post" action="{{ url_for('admin.delete_constraint', constraint_id=c.id) }}">{{ ui.csrf() }}<button class="btn btn--ghost btn--xs">Видалити</button></form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if clashes.values()|select|list %}
+  <p class="flash flash--warn">Частина обмежень суперечить опублікованому розкладу. <a href="{{ url_for('gen.index') }}">Згенеруйте розклад заново</a> — обмеження врахуються автоматично.</p>
+{% endif %}
+{% else %}
+  <div class="empty it-dots">Обмежень немає.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Постійні розклади{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Опубліковані версії</p>
+    <h1 class="page__title">Постійні розклади</h1>
+    <p class="page__lede">Активний розклад бачать студенти й викладачі. Зміни на дати (заміни, скасування) зберігаються окремо й діють для будь-якої версії.</p>
+  </div>
+  <a class="btn btn--primary btn--sm" href="{{ url_for('gen.index') }}">Нова генерація</a>
+</div>
+{% if rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Назва</th><th>Семестр</th><th>Пар</th><th>Опубліковано</th><th></th></tr></thead>
+    <tbody>
+      {% for t in rows %}
+      <tr>
+        <td><strong>{{ t.name }}</strong> {% if t.is_active %}<span class="badge badge--solid">активний</span>{% endif %}</td>
+        <td>{{ ui.dates_text(t.semester_start, t.semester_end) }}{% if t.saturdays %} · суботи{% endif %}</td>
+        <td class="num">{{ counts.get(t.id, 0) }}</td>
+        <td>{{ t.published_at.strftime('%d.%m.%Y %H:%M') if t.published_at }}</td>
+        <td class="btn-row">
+          {% if t.source_job %}<a class="btn btn--ghost btn--xs" href="{{ url_for('gen.job', job_id=t.source_job) }}">Генерація</a>{% endif %}
+          {% if not t.is_active %}<form method="post" action="{{ url_for('admin.activate', tt_id=t.id) }}">{{ ui.csrf() }}<button class="btn btn--secondary btn--xs">Зробити активним</button></form>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}<div class="empty it-dots">Ще нічого не опубліковано.</div>{% endif %}
+{% endblock %}

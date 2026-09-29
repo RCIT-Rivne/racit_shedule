@@ -1,0 +1,65 @@
+/* ============================================================
+   IT Koledzh - Typography tokens
+   Ported from: rcit-web/docs/design-system/tokens/typography.css
+   Upstream (the college design system) is the source of truth.
+
+   CHANGE from upstream: Google Fonts import removed. This app ships
+   to an on-premise college server where network access is unreliable.
+   Open Sans is self-hosted via @fontsource/open-sans (latin + cyrillic
+   + cyrillic-ext subsets, weights 400/600/700/800).
+
+   DEVIATION: --font-ui uses Open Sans instead of Inter. A second font
+   family solely for captions is not worth the extra payload in this app.
+   ============================================================ */
+
+/* Self-hosted Open Sans via @fontsource.
+   Only the subsets actually needed (latin, cyrillic, cyrillic-ext) are
+   imported. The browser uses unicode-range to fetch only the files it needs.
+   Total font payload: ~208 KB (12 woff2 files across 4 weights x 3 subsets).
+
+   NOTE: The @fontsource @font-face CSS is imported from JavaScript
+   (frontend/src/main.ts), not from CSS.  postcss-import cannot resolve
+   bare npm package specifiers, so CSS-level @import would cause an ENOENT
+   at dev-server time.  The JS imports are ordered before this file's own
+   import in main.ts so the @font-face rules are available by the time the
+   browser parses these custom properties. */
+
+:root {
+  /* ---- Families ---- */
+  --font-display: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body:    "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* DEVIATION: upstream uses Inter for --font-ui. We use Open Sans to avoid
+     shipping a second font family; the weight difference is negligible in
+     this data-heavy journal UI. */
+  --font-ui:      "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-logo:    "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; /* Gilroy substitute */
+
+  /* ---- Weights ---- */
+  --weight-regular:  400;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --weight-extrabold:800;
+
+  /* ---- Type scale (px, from the brand book) ---- */
+  --text-display-2xl: 120px;  /* hero numerals / covers */
+  --text-display-xl:  80px;
+  --text-display-lg:  55px;   /* page / section title */
+  --text-h1:          55px;
+  --text-h2:          34px;
+  --text-h3:          25px;
+  --text-body-lg:     25px;   /* long-form body on guideline pages */
+  --text-body:        17px;   /* default UI / paragraph */
+  --text-body-md:     16px;
+  --text-caption:     12px;
+
+  /* ---- Line heights ---- */
+  --leading-tight:  1.05;
+  --leading-snug:   1.2;
+  --leading-normal: 1.4;
+  --leading-relaxed:1.6;
+
+  /* ---- Letter spacing ---- */
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:  0.02em;
+}

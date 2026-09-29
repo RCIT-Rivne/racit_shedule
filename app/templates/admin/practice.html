@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Практика{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Групи поза розкладом</p>
+    <h1 class="page__title">Практика</h1>
+    <p class="page__lede">Поки група на практиці, її пари за розкладом не показуються, а викладачі бачать ці години вільними.</p>
+  </div>
+</div>
+<div class="card">
+  <form class="form" method="post">
+    {{ ui.csrf() }}
+    <div class="form-grid">
+      <label class="field"><span class="field__label">Група</span>
+        <select class="select" name="group" required><option value="">—</option>{% for g in groups %}<option>{{ g.name }}</option>{% endfor %}</select>
+      </label>
+      <label class="field"><span class="field__label">З</span><input class="input" type="date" name="date_from" required></label>
+      <label class="field"><span class="field__label">По</span><input class="input" type="date" name="date_to" required></label>
+      <label class="field"><span class="field__label">Примітка</span><input class="input" name="note" placeholder="Навчальна практика, ТОВ …"></label>
+    </div>
+    <button class="btn btn--primary">Додати</button>
+  </form>
+</div>
+{% if rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Група</th><th>Дати</th><th>Примітка</th><th></th></tr></thead>
+    <tbody>
+      {% for p in rows %}
+      <tr>
+        <td><strong>{{ p.group }}</strong></td>
+        <td>{{ ui.dates_text(p.date_from, p.date_to) }}</td>
+        <td>{{ p.note or '' }}</td>
+        <td><form method="post" action="{{ url_for('admin.delete_practice', practice_id=p.id) }}">{{ ui.csrf() }}<button class="btn btn--ghost btn--xs">Видалити</button></form></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}<div class="empty it-dots">Жодна група зараз не на практиці.</div>{% endif %}
+{% endblock %}
