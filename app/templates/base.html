@@ -31,11 +31,11 @@
         <a class="shell__link {{ 'shell__link--active' if ep in ('admin.day', 'admin.slot') }}" href="{{ url_for('admin.day') }}">Редактор дня</a>
         <a class="shell__link {{ 'shell__link--active' if ep == 'admin.requests_list' }}" href="{{ url_for('admin.requests_list') }}">Заявки{% if pending_requests %} <span class="shell__count">{{ pending_requests }}</span>{% endif %}</a>
         <a class="shell__link {{ 'shell__link--active' if ep == 'admin.absences' }}" href="{{ url_for('admin.absences') }}">Відсутності</a>
-        {% set more_active = ep in ('admin.preferences', 'admin.constraints', 'admin.practice', 'admin.users', 'admin.timetables') or ep.startswith('gen.') %}
+        {% set more_active = ep in ('admin.preferences', 'admin.constraints', 'admin.practice', 'admin.users', 'admin.timetables') or ep.startswith('gen.') or ep.startswith('semester.') %}
         <details class="shell__more">
           <summary class="shell__link {{ 'shell__link--active' if more_active }}">Ще</summary>
           <div class="shell__menu">
-            {% if generator_enabled %}<a class="shell__link {{ 'shell__link--active' if ep.startswith('gen.') }}" href="{{ url_for('gen.index') }}">Генерація розкладу</a>{% endif %}
+            <a class="shell__link {{ 'shell__link--active' if ep.startswith('gen.') or ep.startswith('semester.') }}" href="{{ url_for('semester.index') }}">Новий семестр</a>
             <a class="shell__link {{ 'shell__link--active' if ep == 'admin.timetables' }}" href="{{ url_for('admin.timetables') }}">Постійні розклади</a>
             <a class="shell__link {{ 'shell__link--active' if ep in ('admin.preferences', 'admin.constraints') }}" href="{{ url_for('admin.preferences') }}">Вподобання викладачів</a>
             <a class="shell__link {{ 'shell__link--active' if ep == 'admin.practice' }}" href="{{ url_for('admin.practice') }}">Практика груп</a>

@@ -151,6 +151,11 @@ def test_import_saves_active_timetable_and_teachers(app, tmp_path):
         assert db.session.query(db.Teacher).count() == 1
 
 
-def test_generator_hidden_by_default(app):
-    c = app.test_client()
-    assert c.get("/admin/generate").status_code == 404
+def test_generator_can_be_disabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data2"))
+    monkeypatch.setenv("GENERATOR_ENABLED", "0")
+    from app import create_app, db
+
+    app = create_app()
+    assert app.test_client().get("/admin/generate").status_code == 404
+    db.session.remove()

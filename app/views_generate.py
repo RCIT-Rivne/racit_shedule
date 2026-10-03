@@ -21,6 +21,7 @@ from flask import (
 
 from .auth import admin_required
 from .db import active_timetable
+from .input_check import check_input
 from .jobs import JobStore
 from .timetable import publish as publish_timetable
 from .views_admin import solver_rules
@@ -53,17 +54,16 @@ def _job_or_404(job_id: str) -> dict:
 
 @bp.get("/generate")
 @admin_required
-def index():
-    sample = current_app.config["SAMPLE_INPUT"]
+def index(check=None, filename=None):
     return render_template(
         "admin/generate.html",
         jobs=jobs().list(),
-        sample_available=sample.exists(),
-        sample_name=sample.name,
         default_time=int(current_app.config["DEFAULT_TIME_LIMIT"]),
         semester=Semester.default(),
         constraints=len(solver_rules()),
         active=active_timetable(),
+        check=check,
+        filename=filename,
     )
 
 
@@ -104,20 +104,20 @@ def generate():
         flash("Кінець семестру раніше за початок")
         return redirect(url_for("gen.index"))
     upload = request.files.get("file")
-    if upload and upload.filename:
-        if not upload.filename.lower().endswith(".xlsx"):
-            flash("Потрібен файл .xlsx")
-            return redirect(url_for("gen.index"))
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "input.xlsx"
-            upload.save(path)
-            job_id = jobs().submit(path, upload.filename, time_limit, semester, solver_rules(), _hint())
-    else:
-        sample = current_app.config["SAMPLE_INPUT"]
-        if not sample.exists():
-            flash("Завантажте файл з навантаженням")
-            return redirect(url_for("gen.index"))
-        job_id = jobs().submit(sample, sample.name, time_limit, semester, solver_rules(), _hint())
+    if not upload or not upload.filename:
+        flash("Завантажте файл навантаження (шаблон — за посиланням під полем)")
+        return redirect(url_for("gen.index"))
+    if not upload.filename.lower().endswith(".xlsx"):
+        flash("Потрібен файл .xlsx")
+        return redirect(url_for("gen.index"))
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "input.xlsx"
+        upload.save(path)
+        # Спершу перевірка: з помилками пошук не запускається.
+        check = check_input(path)
+        if not check.ok or request.form.get("action") == "check":
+            return index(check, upload.filename), 200 if check.ok else 400
+        job_id = jobs().submit(path, upload.filename, time_limit, semester, solver_rules(), _hint())
     return redirect(url_for("gen.job", job_id=job_id))
 
 

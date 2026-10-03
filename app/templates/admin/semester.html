@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Новий семестр{% endblock %}
+{% block content %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Постійний розклад на семестр</p>
+    <h1 class="page__title">Новий семестр</h1>
+    <p class="page__lede">Розклад можна імпортувати готовим (шаблон навчальної частини) або згенерувати з навантаження.
+      Поки ви не натиснете «Опублікувати», активний розклад{% if active %} «{{ active.name }}»{% endif %} не змінюється.</p>
+  </div>
+  <a class="btn btn--secondary btn--sm" href="{{ url_for('admin.timetables') }}">Опубліковані розклади</a>
+</div>
+
+<section class="section">
+  <h2 class="section__title">Імпорт готового розкладу</h2>
+  <form class="card form" method="post" action="{{ url_for('semester.preview') }}" enctype="multipart/form-data">
+    {{ ui.csrf() }}
+    <label class="field">
+      <span class="field__label">Шаблон розкладу (.xlsx з аркушем «Шаблон»)</span>
+      <input class="input" type="file" name="template" accept=".xlsx" required>
+      <span class="field__hint"><a href="{{ url_for('semester.download_grid_template') }}">Порожній шаблон</a>
+        {% if active %} · <a href="{{ url_for('semester.download_grid_template', filled=1) }}">активний розклад у форматі шаблону</a> — щоб виправити й імпортувати знову{% endif %}</span>
+    </label>
+    <label class="field">
+      <span class="field__label">Щоденні файли для аудиторій (необов'язково, можна кілька)</span>
+      <input class="input" type="file" name="daily" accept=".xlsx" multiple>
+      <span class="field__hint">«Розклад на ДД_ММ_РРРР (День).xlsx»: якщо в шаблоні пара без аудиторії, а в щоденному файлі та сама пара з аудиторією — вона підставиться.</span>
+    </label>
+    <div class="form-grid">
+      <label class="field"><span class="field__label">Початок семестру</span><input class="input" type="date" name="start" value="{{ semester.start.isoformat() }}"></label>
+      <label class="field"><span class="field__label">Кінець семестру</span><input class="input" type="date" name="end" value="{{ semester.end.isoformat() }}"></label>
+      <label class="field"><span class="field__label">Перший тиждень</span>
+        <select class="select" name="first_week"><option value="0" selected>чисельник</option><option value="1">знаменник</option></select>
+      </label>
+      <label class="field"><span class="field__label">Назва</span><input class="input" name="name" placeholder="Розклад І семестру {{ semester.start.year }}"></label>
+    </div>
+    <label class="btn-row"><input type="checkbox" name="saturdays" checked> Навчальні суботи (перша — за понеділком, наступна — за вівторком і т. д.)</label>
+    <div><button class="btn btn--primary">Перевірити</button></div>
+  </form>
+</section>
+
+<section class="section">
+  <h2 class="section__title">Генерація з навантаження</h2>
+  <div class="card">
+    <p>Генератор будує розклад з файлу навантаження з урахуванням вподобань викладачів. Перед генерацією файл перевіряється:
+      помилки показуються з номерами рядків, і пошук не запускається, доки їх не виправлено.</p>
+    <p class="muted">Шаблон файлу навантаження: <a href="{{ url_for('semester.download_load_template') }}">з прикладом</a>
+      (3 групи, підгрупи, 1,5 пари, обидві зміни — генерується за кілька секунд) ·
+      <a href="{{ url_for('semester.download_load_template', empty=1) }}">порожній</a>. Пояснення — на аркуші «Інструкція».</p>
+    {% if generator_enabled %}<p style="margin-top:12px"><a class="btn btn--primary" href="{{ url_for('gen.index') }}">До генерації</a></p>{% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -35,12 +35,8 @@
 {% if not tt %}
   <div class="empty it-dots">
     <p class="empty__title">Постійний розклад ще не опубліковано</p>
-    {% if generator_enabled %}
-    <p>Згенеруйте розклад і натисніть «Опублікувати» на сторінці результату.</p>
-    <p style="margin-top:16px"><a class="btn btn--primary" href="{{ url_for('gen.index') }}">До генерації</a></p>
-    {% else %}
-    <p>Імпортуйте шаблон: <code>flask --app app import-template "Розклад (Шаблон).xlsx"</code>.</p>
-    {% endif %}
+    <p>Імпортуйте готовий розклад з шаблону або згенеруйте його з навантаження.</p>
+    <p style="margin-top:16px"><a class="btn btn--primary" href="{{ url_for('semester.index') }}">Новий семестр</a></p>
   </div>
 {% endif %}
 

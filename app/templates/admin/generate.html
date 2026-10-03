@@ -15,7 +15,8 @@
   <label class="field">
     <span class="field__label">Файл навантаження (.xlsx, аркуші «Навантаження» та «аудиторії»)</span>
     <input class="input" type="file" name="file" accept=".xlsx">
-    {% if sample_available %}<span class="field__hint">Без файлу — приклад <a href="{{ url_for('gen.sample') }}">{{ sample_name }}</a>.</span>{% endif %}
+    <span class="field__hint">Шаблон: <a href="{{ url_for('semester.download_load_template') }}">з прикладом</a> ·
+      <a href="{{ url_for('semester.download_load_template', empty=1) }}">порожній</a>. Файл перевіряється перед генерацією.</span>
   </label>
   <div class="form-grid">
     <label class="field"><span class="field__label">Початок семестру</span><input class="input" type="date" name="semester_start" value="{{ semester.start.isoformat() }}"></label>
@@ -35,8 +36,29 @@
     Групи: не більше одного дня на тиждень без першої пари.
     Більше часу — якісніший розклад; 120 с зазвичай досить.
   </p>
-  <div><button class="btn btn--primary">Згенерувати</button></div>
+  <div class="btn-row">
+    <button class="btn btn--primary" name="action" value="generate">Згенерувати</button>
+    <button class="btn btn--secondary" name="action" value="check">Лише перевірити файл</button>
+  </div>
 </form>
+
+{% if check %}
+<section class="section">
+  <h2 class="section__title">Перевірка «{{ filename }}»</h2>
+  {% if check.ok %}
+    <p class="flash">Помилок немає: {{ check.groups }} груп, {{ check.lessons }} рядків навантаження, {{ check.teachers }} викладачів, {{ check.rooms }} аудиторій. Можна генерувати.</p>
+  {% else %}
+    <p class="flash flash--error">Знайдено помилок: {{ check.errors|length }}. Виправте файл і завантажте знову — генерацію не запущено.</p>
+    <div class="card"><ul>{% for e in check.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+  {% endif %}
+  {% if check.warnings %}
+  <details class="card">
+    <summary>Попередження ({{ check.warnings|length }})</summary>
+    <ul>{% for w in check.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
 
 <section class="section">
   <h2 class="section__title">Історія генерацій</h2>

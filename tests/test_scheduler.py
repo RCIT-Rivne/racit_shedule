@@ -150,6 +150,17 @@ def test_export_merges_identical_weeks():
 
 @pytest.mark.skipif(not SAMPLE.exists(), reason="немає прикладу вхідних даних")
 def test_real_sample(tmp_path):
+    from app.input_check import check_input
+
+    check = check_input(SAMPLE)
+    if not check.ok:
+        # Реальний файл навантаження зараз неможливий (напр. 26 пар на тиждень у групи):
+        # перевірка має це назвати, а генератор — не знайти розклад і пояснити чому.
+        assert any("Навантаження групи" in e for e in check.errors)
+        schedule = generate(SAMPLE, SolverConfig(time_limit=10))
+        assert not schedule.placements
+        assert any(i.rule == "Навантаження групи" for i in schedule.issues)
+        return
     schedule = generate(SAMPLE, SolverConfig(time_limit=30))
     assert schedule.placements
     errors = [i for i in schedule.issues if i.severity == "error"]

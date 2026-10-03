@@ -8,7 +8,7 @@
     <h1 class="page__title">Постійні розклади</h1>
     <p class="page__lede">Активний розклад бачать студенти й викладачі. Зміни на дати (заміни, скасування) зберігаються окремо й діють для будь-якої версії.</p>
   </div>
-  {% if generator_enabled %}<a class="btn btn--primary btn--sm" href="{{ url_for('gen.index') }}">Нова генерація</a>{% endif %}
+  <a class="btn btn--primary btn--sm" href="{{ url_for('semester.index') }}">Новий семестр</a>
 </div>
 {% if rows %}
 <div class="table-wrap">

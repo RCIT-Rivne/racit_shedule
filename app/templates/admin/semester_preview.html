@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% block title %}Перевірка шаблону{% endblock %}
+{% block content %}
+{% set missing = report.missing_rooms() %}
+{% set conflicts = report.conflicts() %}
+{% set with_email = report.teachers.values()|select|list|length %}
+<div class="page__head">
+  <div>
+    <p class="eyebrow">Новий семестр · {{ meta.filename }}</p>
+    <h1 class="page__title">Перевірка шаблону</h1>
+    <p class="page__lede">Семестр {{ ui.dates_text(semester.start, semester.end) }}, перший тиждень — {{ 'знаменник' if semester.first_week else 'чисельник' }}{% if semester.saturdays %}, суботи за ротацією{% endif %}.</p>
+  </div>
+</div>
+
+<div class="card">
+  <table class="table">
+    <tbody>
+      <tr><td>Груп</td><td class="num">{{ report.groups|length }}</td></tr>
+      <tr><td>Пар у чисельнику / знаменнику</td><td class="num">{{ per_week[0] }} / {{ per_week[1] }}</td></tr>
+      <tr><td>Викладачів (з поштою)</td><td class="num">{{ report.teachers|length }} ({{ with_email }})</td></tr>
+      <tr><td>Аудиторій з щоденних файлів</td><td class="num">{{ report.rooms_from_daily }} ({{ report.daily_files|length }} файлів)</td></tr>
+      <tr><td>Пар без аудиторії</td><td class="num">{{ missing|length }}</td></tr>
+      <tr><td>Конфліктів</td><td class="num">{{ conflicts|length }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% if not report.cells %}<p class="flash flash--error">У шаблоні не знайдено жодної пари — перевірте, що це аркуш «Шаблон» у форматі навчальної частини.</p>{% endif %}
+{% if skipped %}<p class="flash flash--warn">Пропущено файли з неочікуваною назвою: {{ skipped|join(', ') }}</p>{% endif %}
+{% if conflicts %}
+<details class="card" open>
+  <summary>Конфлікти ({{ conflicts|length }}) — можна виправити в шаблоні або вже після публікації в редакторі дня</summary>
+  <ul>{% for c in conflicts %}<li>{{ c }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% if missing %}
+<details class="card">
+  <summary>Пари без аудиторії ({{ missing|length }}) — допишіть у редакторі дня або в шаблоні</summary>
+  <ul>{% for (w, d, p, g), c in missing %}<li>{{ days[d] }}, {{ 'знаменник' if w else 'чисельник' }}, {{ p }} пара, {{ g }}: {{ c.subject }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% if report.warnings %}
+<details class="card">
+  <summary>Попередження ({{ report.warnings|length }})</summary>
+  <ul>{% for w in report.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+
+<div class="card">
+  <form class="form" method="post" action="{{ url_for('semester.do_import', token=token) }}">
+    {{ ui.csrf() }}
+    <label class="field"><span class="field__label">Назва розкладу</span><input class="input" name="name" value="{{ meta.name }}"></label>
+    <div class="btn-row">
+      <button class="btn btn--primary" {% if not report.cells %}disabled{% endif %}>Опублікувати як активний</button>
+    </div>
+  </form>
+  <form method="post" action="{{ url_for('semester.cancel', token=token) }}" style="margin-top:8px">{{ ui.csrf() }}<button class="btn btn--ghost btn--sm">Скасувати</button></form>
+</div>
+{% endblock %}

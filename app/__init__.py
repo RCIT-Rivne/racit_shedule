@@ -32,13 +32,12 @@ def create_app() -> Flask:
     data_dir = Path(os.environ.get("DATA_DIR", BASE_DIR / "data"))
     app.config.update(
         SECRET_KEY=_secret_key(data_dir),
-        MAX_CONTENT_LENGTH=20 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=64 * 1024 * 1024,  # шаблон + десяток щоденних файлів по ~2 МБ
         DATA_DIR=data_dir,
         SAMPLE_INPUT=Path(os.environ.get("SAMPLE_INPUT", BASE_DIR / "info" / "Розклад на 2026 р (інформація).xlsx")),
         DEFAULT_TIME_LIMIT=float(os.environ.get("SOLVER_TIME_LIMIT", 120)),
         RULES_FILE=Path(os.environ.get("RULES_FILE", BASE_DIR / "config" / "teacher_rules.json")),
-        # До грудня 2026 розклад береться з шаблону, генератор схований.
-        GENERATOR_ENABLED=os.environ.get("GENERATOR_ENABLED", "0") == "1",
+        GENERATOR_ENABLED=os.environ.get("GENERATOR_ENABLED", "1") == "1",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
     )
@@ -54,9 +53,10 @@ def create_app() -> Flask:
     from .views_admin import bp as admin_bp
     from .views_generate import bp as gen_bp
     from .views_public import bp as public_bp
+    from .views_semester import bp as semester_bp
     from .views_teacher import bp as teacher_bp
 
-    for bp in (public_bp, auth_bp, teacher_bp, admin_bp, gen_bp):
+    for bp in (public_bp, auth_bp, teacher_bp, admin_bp, gen_bp, semester_bp):
         app.register_blueprint(bp)
 
     app.before_request(load_user)
