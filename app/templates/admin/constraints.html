@@ -44,7 +44,7 @@
     </tbody>
   </table>
 </div>
-{% if clashes.values()|select|list %}
+{% if generator_enabled and clashes.values()|select|list %}
   <p class="flash flash--warn">Частина обмежень суперечить опублікованому розкладу. <a href="{{ url_for('gen.index') }}">Згенеруйте розклад заново</a> — обмеження врахуються автоматично.</p>
 {% endif %}
 {% else %}

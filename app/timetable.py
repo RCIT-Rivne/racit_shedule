@@ -16,19 +16,19 @@ from pathlib import Path
 from sqlalchemy import select
 
 from .db import Absence, Change, Practice, TeacherConstraint, Timetable, TimetableEntry, session
-from .scheduler.models import TOTAL_PAIRS, uk_sort_key
+from .scheduler.models import uk_sort_key
 from .scheduler.semester import Semester
 
-# Розклад дзвінків коледжу: пара — 80 хв, велика перерва після 2-ї пари.
-# Початки 1–6 пар узгоджені з електронним журналом; 7-ма — за тим самим ритмом.
+# Розклад дзвінків коледжу (повний). Пар у розкладі до 8 — 8-ма буває в ІІ зміні.
 BELLS = {
     1: ("08:30", "09:50"),
-    2: ("10:05", "11:25"),
+    2: ("10:00", "11:20"),
     3: ("11:50", "13:10"),
-    4: ("13:25", "14:45"),
+    4: ("13:20", "14:40"),
     5: ("15:00", "16:20"),
-    6: ("16:35", "17:55"),
-    7: ("18:10", "19:30"),
+    6: ("16:30", "17:50"),
+    7: ("18:00", "19:20"),
+    8: ("19:30", "20:50"),
 }
 SHARED_ROOMS = {"спортзал"}
 
@@ -289,23 +289,11 @@ def free_rooms(tt: Timetable, slots: list[Slot], pair: int) -> list[str]:
 
 def publish(schedule, name: str, source_job: str | None) -> Timetable:
     """Зберегти згенерований розклад як постійний і зробити його активним."""
-    from .db import now
-
-    sem = schedule.semester
     courses = {g.name: g.course for g in schedule.data.groups}
-    tt = Timetable(
-        name=name,
-        source_job=source_job,
-        semester_start=sem.start,
-        semester_end=sem.end,
-        first_week=sem.first_week,
-        saturdays=sem.saturdays,
-        is_active=True,
-        published_at=now(),
-    )
+    entries = []
     for p in schedule.placements:
         lesson = schedule.lesson(p.lesson_id)
-        tt.entries.append(
+        entries.append(
             TimetableEntry(
                 group=lesson.group,
                 course=courses.get(lesson.group, 0),
@@ -317,6 +305,24 @@ def publish(schedule, name: str, source_job: str | None) -> Timetable:
                 pair=p.pair,
             )
         )
+    return save_timetable(name, source_job, schedule.semester, entries)
+
+
+def save_timetable(name: str, source: str | None, sem: Semester, entries: list[TimetableEntry]) -> Timetable:
+    """Записати постійний розклад і зробити його єдиним активним."""
+    from .db import now
+
+    tt = Timetable(
+        name=name,
+        source_job=source,
+        semester_start=sem.start,
+        semester_end=sem.end,
+        first_week=sem.first_week,
+        saturdays=sem.saturdays,
+        is_active=True,
+        published_at=now(),
+    )
+    tt.entries.extend(entries)
     for other in session.scalars(select(Timetable).where(Timetable.is_active.is_(True))):
         other.is_active = False
     session.add(tt)
@@ -324,4 +330,4 @@ def publish(schedule, name: str, source_job: str | None) -> Timetable:
     return tt
 
 
-PAIRS = list(range(1, TOTAL_PAIRS + 1))
+PAIRS = list(BELLS)

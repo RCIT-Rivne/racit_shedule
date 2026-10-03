@@ -93,6 +93,30 @@ class TimetableEntry(Base):
     timetable: Mapped[Timetable] = relationship(back_populates="entries")
 
 
+class Teacher(Base):
+    """Викладач: ім'я так, як воно записане в розкладі, і пошта коледжу
+    (за нею викладача знаходять зовнішні системи — журнал, бот)."""
+
+    __tablename__ = "teachers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True)
+    email: Mapped[str | None] = mapped_column(String(200), unique=True)
+    aliases: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
+def teacher_by_email(email: str) -> Teacher | None:
+    return session.scalar(select(Teacher).where(Teacher.email == email.strip().lower()))
+
+
+def teacher_by_name(name: str) -> Teacher | None:
+    teacher = session.scalar(select(Teacher).where(Teacher.name == name))
+    if teacher is None:
+        teacher = next((t for t in session.scalars(select(Teacher)) if name in (t.aliases or [])), None)
+    return teacher
+
+
 class Change(Base):
     """Зміна на конкретну дату для пари групи: заміна, скасування, аудиторія,
     додаткова пара. Перенесення = скасування + додаткова пара з одним move_id."""

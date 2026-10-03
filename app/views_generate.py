@@ -31,6 +31,12 @@ from .scheduler.semester import Semester
 bp = Blueprint("gen", __name__, url_prefix="/admin")
 
 
+@bp.before_request
+def generator_enabled():
+    if not current_app.config["GENERATOR_ENABLED"]:
+        abort(404)
+
+
 def jobs() -> JobStore:
     return current_app.extensions["jobs"]
 

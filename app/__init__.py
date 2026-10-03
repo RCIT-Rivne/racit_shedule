@@ -37,6 +37,8 @@ def create_app() -> Flask:
         SAMPLE_INPUT=Path(os.environ.get("SAMPLE_INPUT", BASE_DIR / "info" / "Розклад на 2026 р (інформація).xlsx")),
         DEFAULT_TIME_LIMIT=float(os.environ.get("SOLVER_TIME_LIMIT", 120)),
         RULES_FILE=Path(os.environ.get("RULES_FILE", BASE_DIR / "config" / "teacher_rules.json")),
+        # До грудня 2026 розклад береться з шаблону, генератор схований.
+        GENERATOR_ENABLED=os.environ.get("GENERATOR_ENABLED", "0") == "1",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
     )
@@ -72,7 +74,8 @@ def create_app() -> Flask:
             pending = db.session.scalar(
                 select(func.count()).select_from(db.Request).where(db.Request.status == db.Request.PENDING)
             )
-        return {"csrf_token": csrf_token, "current_user": user, "pending_requests": pending}
+        return {"csrf_token": csrf_token, "current_user": user, "pending_requests": pending,
+                "generator_enabled": app.config["GENERATOR_ENABLED"]}
 
     def error_page(code: int, title: str):
         return lambda e: (render_template("error.html", code=code, title=title, error=e), code)
@@ -103,6 +106,28 @@ def create_app() -> Flask:
             raise click.ClickException(f"Немає збереженого розкладу для задачі {job_id}")
         tt = publish(schedule, name or f"Розклад (генерація {job_id})", job_id)
         click.echo(f"Опубліковано «{tt.name}»: {len(tt.entries)} пар")
+
+    @app.cli.command("import-template")
+    @click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+    @click.option("--daily", "daily_dir", type=click.Path(exists=True, file_okay=False, path_type=Path),
+                  help="тека з щоденними файлами для аудиторій (за замовчуванням — тека шаблону)")
+    @click.option("--start", type=click.DateTime(["%Y-%m-%d"]), default="2026-09-01", show_default=True)
+    @click.option("--end", type=click.DateTime(["%Y-%m-%d"]), default="2026-12-31", show_default=True)
+    @click.option("--first-week", type=click.Choice(["0", "1"]), default="0", show_default=True,
+                  help="тиждень початку семестру: 0 — чисельник, 1 — знаменник")
+    @click.option("--name", default=None, help="назва постійного розкладу")
+    @click.option("--dry-run", is_flag=True, help="лише звіт, без запису в базу")
+    def import_template_cmd(path, daily_dir, start, end, first_week, name, dry_run):
+        """Імпортувати постійний розклад з аркуша «Шаблон» і зробити його активним."""
+        from .scheduler.semester import Semester
+        from .template_import import import_template
+
+        semester = Semester(start.date(), end.date(), int(first_week))
+        report = import_template(path, semester, name or f"Розклад з шаблону ({path.stem})",
+                                 daily_dir or path.parent, dry_run)
+        for line in report.lines():
+            click.echo(line)
+        click.echo("Пробний запуск — у базу нічого не записано" if dry_run else "Розклад опубліковано як активний")
 
     @app.cli.command("import-rules")
     @click.argument("path", required=False)

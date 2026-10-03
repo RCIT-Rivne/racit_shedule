@@ -5,7 +5,7 @@
 <div class="empty it-dots">
   <p class="empty__title">Розклад ще не опубліковано</p>
   <p>Навчальна частина готує розклад на семестр. Загляньте трохи пізніше.</p>
-  {% if current_user and current_user.is_admin %}
+  {% if generator_enabled and current_user and current_user.is_admin %}
     <p style="margin-top:16px"><a class="btn btn--primary" href="{{ url_for('gen.index') }}">Згенерувати розклад</a></p>
   {% endif %}
 </div>

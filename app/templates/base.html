@@ -35,7 +35,7 @@
         <details class="shell__more">
           <summary class="shell__link {{ 'shell__link--active' if more_active }}">Ще</summary>
           <div class="shell__menu">
-            <a class="shell__link {{ 'shell__link--active' if ep.startswith('gen.') }}" href="{{ url_for('gen.index') }}">Генерація розкладу</a>
+            {% if generator_enabled %}<a class="shell__link {{ 'shell__link--active' if ep.startswith('gen.') }}" href="{{ url_for('gen.index') }}">Генерація розкладу</a>{% endif %}
             <a class="shell__link {{ 'shell__link--active' if ep == 'admin.timetables' }}" href="{{ url_for('admin.timetables') }}">Постійні розклади</a>
             <a class="shell__link {{ 'shell__link--active' if ep in ('admin.preferences', 'admin.constraints') }}" href="{{ url_for('admin.preferences') }}">Вподобання викладачів</a>
             <a class="shell__link {{ 'shell__link--active' if ep == 'admin.practice' }}" href="{{ url_for('admin.practice') }}">Практика груп</a>
