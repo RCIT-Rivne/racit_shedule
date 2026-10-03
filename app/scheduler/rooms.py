@@ -208,11 +208,7 @@ def assign_rooms(schedule: Schedule) -> None:
 
     # Кожна підгрупа (викладач) позиції — окремий елемент.
     by_name = {r.name: r for r in data.rooms}
-    fixed_rooms: dict[str, tuple[list[Room], bool]] = {}
-    for rule in data.rules:
-        if rule.kind == "room" and rule.room in by_name:
-            for t in rule.teachers:
-                fixed_rooms[t] = ([by_name[rule.room]], rule.hard)
+    room_rules = [r for r in data.rules if r.kind == "room" and r.room in by_name]
 
     items = {}
     for key, placements in positions.items():
@@ -223,10 +219,11 @@ def assign_rooms(schedule: Schedule) -> None:
         for i in range(max(1, len(lesson.teachers))):
             teacher = lesson.teachers[i] if i < len(lesson.teachers) else f"—{lesson.group}"
             opts = options
-            if teacher in fixed_rooms:
-                rooms, hard = fixed_rooms[teacher]
-                pinned = [(COST_PINNED, r) for r in rooms]
-                opts = pinned if hard else pinned + [(c, r) for c, r in options if r not in rooms]
+            rule = next((r for r in room_rules if r.applies_to(lesson, teacher)), None)
+            if rule:
+                room = by_name[rule.room]
+                pinned = [(COST_PINNED, room)]
+                opts = pinned if rule.hard else pinned + [(c, r) for c, r in options if r is not room]
             items[key, i] = (teacher, weeks, day, pair, opts)
 
     result = _home_room_greedy(items)

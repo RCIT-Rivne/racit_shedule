@@ -122,7 +122,8 @@ class TeacherRule:
     kind:
       unavailable — не ставити пари в дні `days` на пари `pairs` (None — усі);
       max_days    — не більше `value` робочих днів на тиждень (методичний день = 4);
-      room        — пари викладача лише в аудиторії `room`.
+      room        — пари викладача лише в аудиторії `room` (якщо задано `subject` —
+                    лише заняття, у назві яких є цей текст).
     hard=True — правило не порушується ніколи; False — «за можливості» (штраф).
     """
 
@@ -133,9 +134,18 @@ class TeacherRule:
     hard: bool = True
     value: int | None = None
     room: str | None = None
+    subject: str | None = None
     label: str = ""
 
     KINDS = ("unavailable", "max_days", "room")
+
+    def applies_to(self, lesson: Lesson, teacher: str | None = None) -> bool:
+        """Чи стосується правило заняття (і конкретного викладача, якщо задано)."""
+        if teacher is not None and teacher not in self.teachers:
+            return False
+        if teacher is None and not set(self.teachers) & set(lesson.teachers):
+            return False
+        return not self.subject or self.subject.lower() in lesson.subject.lower()
 
     def cells(self, n_days: int, n_pairs: int) -> set[tuple[int, int]]:
         days = self.days if self.days is not None else range(n_days)
@@ -143,11 +153,11 @@ class TeacherRule:
         return {(d, p) for d in days for p in pairs}
 
     def to_dict(self) -> dict:
-        return {k: getattr(self, k) for k in ("teachers", "kind", "days", "pairs", "hard", "value", "room", "label")}
+        return {k: getattr(self, k) for k in ("teachers", "kind", "days", "pairs", "hard", "value", "room", "subject", "label")}
 
     @classmethod
     def from_dict(cls, data: dict) -> TeacherRule:
-        return cls(**{k: data.get(k) for k in ("teachers", "kind", "days", "pairs", "hard", "value", "room", "label")
+        return cls(**{k: data.get(k) for k in ("teachers", "kind", "days", "pairs", "hard", "value", "room", "subject", "label")
                       if data.get(k) is not None})
 
     def describe(self) -> str:
@@ -159,7 +169,8 @@ class TeacherRule:
         if self.kind == "max_days":
             return f"{strength}не більше {self.value} робочих днів на тиждень"
         if self.kind == "room":
-            return f"{strength}лише аудиторія {self.room}"
+            what = f"«{self.subject}» " if self.subject else ""
+            return f"{strength}{what}лише в аудиторії {self.room}"
         return self.kind
 
 

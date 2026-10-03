@@ -184,6 +184,7 @@ def solve(
     penalties: list[tuple[str, int, cp_model.LinearExprT]] = []
 
     # --- Вподобання викладачів: коли не ставити (жорстко або «за можливості») ---
+    blocked: dict[int, set[tuple[int, int]]] = defaultdict(set)
     for rule in data.rules:
         if rule.kind != "unavailable":
             continue
@@ -193,11 +194,31 @@ def solve(
                 continue
             for d, p in cells:
                 if d < n_days and p in group_pairs[l.group]:
+                    if rule.hard:
+                        blocked[l.id].add((d, p))
                     for w in weeks:
                         if rule.hard:
                             model.add(x[l.id, w, d, p] == 0)
                         else:
                             penalties.append(("w_pref_avoid", config.w_pref_avoid, x[l.id, w, d, p]))
+
+    def open_days(l) -> int:
+        """Скільки днів заняття взагалі можна поставити (з урахуванням жорстких вподобань)."""
+        return sum(any((d, p) not in blocked[l.id] for p in group_pairs[l.group]) for d in range(n_days))
+
+    # --- Закріплена аудиторія (жорстке правило room): одночасно лише одне заняття ---
+    shared_rooms = {r.name for r in data.rooms if r.shared}
+    pinned: dict[str, set[int]] = defaultdict(set)
+    for rule in data.rules:
+        if rule.kind == "room" and rule.hard and rule.room not in shared_rooms:
+            pinned[rule.room] |= {l.id for l in data.lessons if rule.applies_to(l)}
+    for lesson_ids in pinned.values():
+        for w in weeks:
+            for d in range(n_days):
+                for p in range(1, config.max_pair + 1):
+                    vars_ = [x[i, w, d, p] for i in lesson_ids if (i, w, d, p) in x]
+                    if len(vars_) > 1:
+                        model.add(sum(vars_) <= 1)
 
 
     # --- Тижневе навантаження дисципліни ---
@@ -275,10 +296,12 @@ def solve(
                         core.append(("w_cross_shift", config.w_cross_shift, y))
 
                 # Однакові дисципліни в один день: жорстко, якщо пар дисципліни
-                # за тиждень не більше, ніж днів; інакше дубль неминучий — штраф.
+                # за тиждень не більше, ніж доступних викладачу днів; інакше дубль
+                # неминучий — штраф.
                 for subject_lessons in by_subject.values():
                     total = sum(v for l in subject_lessons for _, v in lesson_vars(l, w, d))
-                    if sum(l.week_bounds[w] for l in subject_lessons) <= n_days:
+                    days_open = min(open_days(l) for l in subject_lessons)
+                    if sum(l.week_bounds[w] for l in subject_lessons) <= days_open:
                         model.add(total <= 1)
                     else:
                         dup = model.new_int_var(0, len(pairs), "")

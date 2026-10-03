@@ -113,7 +113,7 @@ def validate(
             elif rule.kind == "room":
                 for p in schedule.placements:
                     l = schedule.lesson(p.lesson_id)
-                    if t in l.teachers:
+                    if rule.applies_to(l, t) and t in l.teachers:
                         i = l.teachers.index(t)
                         room = p.rooms[i] if i < len(p.rooms) else None
                         if room and room != rule.room:

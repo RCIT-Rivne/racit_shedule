@@ -111,6 +111,9 @@ def _room_kind(name: str, note: str) -> tuple[str, bool]:
         return "range", False
     if n == "н.м":
         return "range_reserve", False
+    # Аудиторії НУВГП (напр. «1В») — лише для закріплених правилом room занять.
+    if "нувгп" in t:
+        return "pinned", False
     if "програміст" in t:
         return "programmers", False
     if "комп" in t:
